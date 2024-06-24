@@ -1,28 +1,28 @@
 {
-	"name": "sdbot",
-	"version": "1.0.0",
-	"description": "",
-	"main": "index.js",
-	"scripts": {
-		"test": "npm run typecheck && npm run lint && npm run format",
-		"typecheck": "tsc --noEmit",
-		"build": "tsc",
-		"start": "node dist/index.js",
-		"dev": "ts-node src/index.ts",
-		"lint": "biome check",
-		"format": "biome format"
-	},
-	"keywords": [],
-	"author": "",
-	"license": "ISC",
-	"dependencies": {
-		"axios": "^1.7.2",
-		"discord.js": "^14.15.3",
-		"dotenv": "^16.4.5"
-	},
-	"devDependencies": {
-		"@biomejs/biome": "1.8.2",
-		"ts-node": "^10.9.2",
-		"typescript": "^5.5.2"
-	}
+  "name": "sdbot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "npm run typecheck && npm run lint && npm run format",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "lint": "biome check",
+    "format": "biome format"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.7.2",
+    "discord.js": "^14.15.3",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.8.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.2"
+  }
 }
