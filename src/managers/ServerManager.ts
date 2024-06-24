@@ -3,7 +3,7 @@
 import axios from "axios";
 import apiServers from "../config/apiServers";
 
-interface ServerStatus {
+export interface ServerStatus {
 	name: string;
 	url: string;
 	isOnline: boolean;
@@ -63,7 +63,7 @@ class ServerManager {
 		return this.servers.filter((server) => server.isOnline);
 	}
 
-	getServerForCheckpoint(checkpoint: string) {
+	getServerForCheckpoint(checkpoint: string | null) {
 		const normalizedCheckpoint = this.normalizeCheckpointName(checkpoint);
 		console.log(
 			`Searching for server with checkpoint: ${normalizedCheckpoint}`,
@@ -160,16 +160,19 @@ class ServerManager {
 	getAvailableCheckpoints(): CheckpointInfo[] {
 		const checkpointMap = new Map<string, string[]>();
 
-		this.getAvailableServers().forEach((server) => {
-			server.checkpoints.forEach((checkpoint) => {
+		for (const server of this.getAvailableServers()) {
+			for (const checkpoint of server.checkpoints) {
 				const normalizedCheckpoint = this.normalizeCheckpointName(checkpoint);
+				if (!normalizedCheckpoint) {
+					continue;
+				}
 				const servers = checkpointMap.get(normalizedCheckpoint) || [];
 				if (!servers.includes(server.name)) {
 					servers.push(server.name);
 				}
 				checkpointMap.set(normalizedCheckpoint, servers);
-			});
-		});
+			}
+		}
 
 		const checkpoints = Array.from(checkpointMap.entries()).map(
 			([name, servers]) => ({
@@ -182,18 +185,20 @@ class ServerManager {
 		return checkpoints;
 	}
 
-	private normalizeCheckpointName(checkpoint: string): string {
+	private normalizeCheckpointName(
+		checkpoint: string | null | undefined,
+	): string | null {
 		// Remove file extensions and version hashes
-		return checkpoint.split(".")[0]?.split("[")[0]?.trim() || "";
+		return checkpoint?.split(".")[0]?.split("[")[0]?.trim() || null;
 	}
 
 	logServerStatus() {
 		console.log("Current server status:");
-		this.servers.forEach((server) => {
+		for (const server of this.servers) {
 			console.log(
 				`- ${server.name}: Online: ${server.isOnline}, Checkpoint: ${server.currentCheckpoint}, Busy: ${server.isBusy}`,
 			);
-		});
+		}
 	}
 }
 

@@ -2,7 +2,7 @@
 
 import axios from "axios";
 import RequestQueue, { type QueuedRequest } from "../managers/RequestQueue";
-import ServerManager from "../managers/ServerManager";
+import ServerManager, { type ServerStatus } from "../managers/ServerManager";
 
 export interface ImageGenerationParams {
 	prompt: string;
@@ -31,7 +31,7 @@ class StableDiffusionClient {
 
 	async generateImage(
 		params: ImageGenerationParams,
-		checkpoint: string,
+		checkpoint: string | null,
 		onStatusUpdate: (update: StatusUpdate) => Promise<void>,
 	): Promise<string> {
 		return new Promise((resolve, reject) => {
@@ -61,7 +61,7 @@ class StableDiffusionClient {
 		}
 	}
 
-	private async processRequest(request: QueuedRequest, server: any) {
+	private async processRequest(request: QueuedRequest, server: ServerStatus) {
 		await request.onStatusUpdate({
 			message: `Generating image on ${server.name}`,
 			type: "info",

@@ -1,12 +1,16 @@
 // src/commands/stableDiffusion.ts
 
 import { SlashCommandBuilder } from "@discordjs/builders";
-import type { AutocompleteInteraction, CommandInteraction } from "discord.js";
+import type {
+	AutocompleteInteraction,
+	CommandInteraction,
+	GuildMember,
+} from "discord.js";
 import StableDiffusionClient, {
 	type StatusUpdate,
 } from "../api/StableDiffusionClient";
 import PermissionsManager from "../managers/PermissionsManager";
-import ServerManager from "../managers/ServerManager";
+import ServerManager, { type ServerStatus } from "../managers/ServerManager";
 
 export const data = new SlashCommandBuilder()
 	.setName("generate")
@@ -68,7 +72,10 @@ export const data = new SlashCommandBuilder()
 export async function execute(interaction: CommandInteraction) {
 	if (!interaction.isChatInputCommand()) return;
 
-	if (!PermissionsManager.canUseStableDiffusion(interaction.member as any)) {
+	if (
+		interaction.member &&
+		!PermissionsManager.canUseStableDiffusion(interaction.member as GuildMember)
+	) {
 		await interaction.reply({
 			content: "You do not have permission to use this command.",
 			ephemeral: true,
@@ -93,7 +100,7 @@ export async function execute(interaction: CommandInteraction) {
 			await interaction.editReply(update.message);
 		};
 
-		let server: any;
+		let server: ServerStatus | null = null;
 		if (checkpoint) {
 			server = ServerManager.getServerForCheckpoint(checkpoint);
 			if (!server) {

@@ -9,14 +9,16 @@ config();
 
 const commands = [stableDiffusionCommand.data.toJSON()];
 
-const rest = new REST({ version: "9" }).setToken(process.env.DISCORD_TOKEN!);
+const rest = new REST({ version: "9" }).setToken(
+	process.env.DISCORD_TOKEN || "",
+);
 
 (async () => {
 	try {
 		console.log("Started refreshing application (/) commands.");
 
 		// Register the commands to the Discord API
-		await rest.put(Routes.applicationCommands(process.env.CLIENT_ID!), {
+		await rest.put(Routes.applicationCommands(process.env.CLIENT_ID || ""), {
 			body: commands,
 		});
 
