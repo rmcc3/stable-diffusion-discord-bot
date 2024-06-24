@@ -11,7 +11,10 @@ const apiServers: APIServer[] = [
     {
         name: "Nebula (Fast)",
         url: "http://192.168.1.118:7860",
-        checkpoints: ["Turbo\\level4sdxlAlphaV04", "epicphotogasm_ultimateFidelity"],
+        checkpoints: [
+            "Turbo\\level4sdxlAlphaV04",
+            "epicphotogasm_ultimateFidelity",
+        ],
         loras: ["5chw4nz-dildo-merge-v1", "xpenis247.71sJ"],
     },
     {
@@ -19,7 +22,7 @@ const apiServers: APIServer[] = [
         url: "http://192.168.3.217:7860",
         checkpoints: ["epicphotogasm_ultimateFidelity"],
         loras: [""],
-    }
+    },
 ];
 
 export default apiServers;

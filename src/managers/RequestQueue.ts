@@ -1,12 +1,15 @@
 // src/managers/RequestQueue.ts
 
-import { ImageGenerationParams, StatusUpdate } from '../api/StableDiffusionClient';
+import type {
+    ImageGenerationParams,
+    StatusUpdate,
+} from "../api/StableDiffusionClient";
 
 export interface QueuedRequest {
     params: ImageGenerationParams;
-    checkpoint: string;
+    checkpoint: string | null;
     resolve: (value: string) => void;
-    reject: (reason?: any) => void;
+    reject: (reason?: unknown) => void;
     onStatusUpdate: (update: StatusUpdate) => Promise<void>;
 }
 

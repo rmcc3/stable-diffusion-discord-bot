@@ -1,9 +1,9 @@
 // src/index.ts
 
-import { Client, GatewayIntentBits, Collection } from 'discord.js';
-import { config } from 'dotenv';
-import * as stableDiffusionCommand from './commands/stableDiffusion';
-import ServerManager from './managers/ServerManager';
+import { Client, Collection, GatewayIntentBits } from "discord.js";
+import { config } from "dotenv";
+import * as stableDiffusionCommand from "./commands/stableDiffusion";
+import ServerManager from "./managers/ServerManager";
 
 config();
 
@@ -17,12 +17,12 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds] }) as BotClient;
 client.commands = new Collection();
 client.commands.set(stableDiffusionCommand.data.name, stableDiffusionCommand);
 
-client.once('ready', () => {
-    console.log('Bot is ready!');
+client.once("ready", () => {
+    console.log("Bot is ready!");
     ServerManager.initialize();
 });
 
-client.on('interactionCreate', async interaction => {
+client.on("interactionCreate", async (interaction) => {
     if (interaction.isChatInputCommand()) {
         const command = client.commands.get(interaction.commandName);
         if (!command) return;
@@ -31,7 +31,10 @@ client.on('interactionCreate', async interaction => {
             await command.execute(interaction);
         } catch (error) {
             console.error(error);
-            await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+            await interaction.reply({
+                content: "There was an error while executing this command!",
+                ephemeral: true,
+            });
         }
     } else if (interaction.isAutocomplete()) {
         const command = client.commands.get(interaction.commandName);

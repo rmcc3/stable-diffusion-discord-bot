@@ -1,9 +1,9 @@
 // src/managers/ServerManager.ts
 
-import apiServers from '../config/apiServers';
-import axios from 'axios';
+import axios from "axios";
+import apiServers from "../config/apiServers";
 
-interface ServerStatus {
+export interface ServerStatus {
     name: string;
     url: string;
     isOnline: boolean;
@@ -22,7 +22,7 @@ class ServerManager {
     private servers: ServerStatus[];
 
     constructor() {
-        this.servers = apiServers.map(server => ({
+        this.servers = apiServers.map((server) => ({
             ...server,
             isOnline: false,
             currentCheckpoint: null,
@@ -36,14 +36,23 @@ class ServerManager {
     }
 
     private async updateServerStatus() {
-        console.log('Updating server status...');
+        console.log("Updating server status...");
         for (const server of this.servers) {
             try {
-                const response = await axios.get(`${server.url}/sdapi/v1/options`, { timeout: 5000 });
+                const response = await axios.get(
+                    `${server.url}/sdapi/v1/options`,
+                    {
+                        timeout: 5000,
+                    },
+                );
                 server.isOnline = true;
-                server.currentCheckpoint = this.normalizeCheckpointName(response.data.sd_model_checkpoint);
+                server.currentCheckpoint = this.normalizeCheckpointName(
+                    response.data.sd_model_checkpoint,
+                );
                 server.isBusy = false; // Reset busy status
-                console.log(`Server ${server.name} is online. Current checkpoint: ${server.currentCheckpoint}`);
+                console.log(
+                    `Server ${server.name} is online. Current checkpoint: ${server.currentCheckpoint}`,
+                );
             } catch (error) {
                 server.isOnline = false;
                 server.currentCheckpoint = null;
@@ -54,28 +63,40 @@ class ServerManager {
     }
 
     getAvailableServers() {
-        return this.servers.filter(server => server.isOnline);
+        return this.servers.filter((server) => server.isOnline);
     }
 
-    getServerForCheckpoint(checkpoint: string) {
+    getServerForCheckpoint(checkpoint: string | null) {
         const normalizedCheckpoint = this.normalizeCheckpointName(checkpoint);
-        console.log(`Searching for server with checkpoint: ${normalizedCheckpoint}`);
+        console.log(
+            `Searching for server with checkpoint: ${normalizedCheckpoint}`,
+        );
         const availableServers = this.getAvailableServers();
-        console.log(`Available servers: ${availableServers.map(s => s.name).join(', ')}`);
+        console.log(
+            `Available servers: ${availableServers.map((s) => s.name).join(", ")}`,
+        );
 
         // First, try to find a non-busy server with the correct checkpoint
-        const server = availableServers.find(s => s.currentCheckpoint === normalizedCheckpoint && !s.isBusy);
+        const server = availableServers.find(
+            (s) => s.currentCheckpoint === normalizedCheckpoint && !s.isBusy,
+        );
 
         if (server) {
-            console.log(`Found non-busy server ${server.name} for checkpoint ${normalizedCheckpoint}`);
+            console.log(
+                `Found non-busy server ${server.name} for checkpoint ${normalizedCheckpoint}`,
+            );
             return server;
         }
 
         // If all servers with the checkpoint are busy, return the first one that matches the checkpoint
-        const busyServer = availableServers.find(s => s.currentCheckpoint === normalizedCheckpoint);
+        const busyServer = availableServers.find(
+            (s) => s.currentCheckpoint === normalizedCheckpoint,
+        );
 
         if (busyServer) {
-            console.log(`All servers with checkpoint ${normalizedCheckpoint} are busy. Returning ${busyServer.name}`);
+            console.log(
+                `All servers with checkpoint ${normalizedCheckpoint} are busy. Returning ${busyServer.name}`,
+            );
             return busyServer;
         }
 
@@ -84,84 +105,108 @@ class ServerManager {
     }
 
     releaseServer(serverName: string) {
-        const server = this.servers.find(s => s.name === serverName);
+        const server = this.servers.find((s) => s.name === serverName);
         if (server) {
             server.isBusy = false;
             console.log(`Released server ${serverName}`);
         } else {
-            console.log(`Attempted to release non-existent server ${serverName}`);
+            console.log(
+                `Attempted to release non-existent server ${serverName}`,
+            );
         }
     }
 
     getAvailableServerWithAnyCheckpoint() {
-        console.log('Searching for any available server with a loaded checkpoint');
+        console.log(
+            "Searching for any available server with a loaded checkpoint",
+        );
         const availableServers = this.getAvailableServers();
-        console.log(`Available servers: ${availableServers.map(s => s.name).join(', ')}`);
+        console.log(
+            `Available servers: ${availableServers.map((s) => s.name).join(", ")}`,
+        );
 
         // First, try to find a non-busy server
-        const server = availableServers.find(s => !s.isBusy && s.currentCheckpoint);
+        const server = availableServers.find(
+            (s) => !s.isBusy && s.currentCheckpoint,
+        );
 
         if (server) {
-            console.log(`Found non-busy server ${server.name} with checkpoint ${server.currentCheckpoint}`);
+            console.log(
+                `Found non-busy server ${server.name} with checkpoint ${server.currentCheckpoint}`,
+            );
             server.isBusy = true;
             return server;
         }
 
         // If all servers are busy, return the first one with a loaded checkpoint
-        const busyServer = availableServers.find(s => s.currentCheckpoint);
+        const busyServer = availableServers.find((s) => s.currentCheckpoint);
 
         if (busyServer) {
-            console.log(`All servers are busy. Returning ${busyServer.name} with checkpoint ${busyServer.currentCheckpoint}`);
+            console.log(
+                `All servers are busy. Returning ${busyServer.name} with checkpoint ${busyServer.currentCheckpoint}`,
+            );
             return busyServer;
         }
 
-        console.log('No server found with a loaded checkpoint');
+        console.log("No server found with a loaded checkpoint");
         return null;
     }
 
     setServerBusy(serverName: string, isBusy: boolean) {
-        const server = this.servers.find(s => s.name === serverName);
+        const server = this.servers.find((s) => s.name === serverName);
         if (server) {
             server.isBusy = isBusy;
             console.log(`Set server ${serverName} busy status to ${isBusy}`);
         } else {
-            console.log(`Attempted to set busy status for non-existent server ${serverName}`);
+            console.log(
+                `Attempted to set busy status for non-existent server ${serverName}`,
+            );
         }
     }
 
     getAvailableCheckpoints(): CheckpointInfo[] {
         const checkpointMap = new Map<string, string[]>();
 
-        this.getAvailableServers().forEach(server => {
-            server.checkpoints.forEach(checkpoint => {
-                const normalizedCheckpoint = this.normalizeCheckpointName(checkpoint);
+        for (const server of this.getAvailableServers()) {
+            for (const checkpoint of server.checkpoints) {
+                const normalizedCheckpoint =
+                    this.normalizeCheckpointName(checkpoint);
+                if (!normalizedCheckpoint) {
+                    continue;
+                }
                 const servers = checkpointMap.get(normalizedCheckpoint) || [];
                 if (!servers.includes(server.name)) {
                     servers.push(server.name);
                 }
                 checkpointMap.set(normalizedCheckpoint, servers);
-            });
-        });
+            }
+        }
 
-        const checkpoints = Array.from(checkpointMap.entries()).map(([name, servers]) => ({
-            name,
-            servers,
-        }));
+        const checkpoints = Array.from(checkpointMap.entries()).map(
+            ([name, servers]) => ({
+                name,
+                servers,
+            }),
+        );
 
-        console.log('Available checkpoints:', checkpoints);
+        console.log("Available checkpoints:", checkpoints);
         return checkpoints;
     }
 
-    private normalizeCheckpointName(checkpoint: string): string {
+    private normalizeCheckpointName(
+        checkpoint: string | null | undefined,
+    ): string | null {
         // Remove file extensions and version hashes
-        return checkpoint.split('.')[0].split('[')[0].trim();
+        return checkpoint?.split(".")[0]?.split("[")[0]?.trim() || null;
     }
 
     logServerStatus() {
-        console.log('Current server status:');
-        this.servers.forEach(server => {
-            console.log(`- ${server.name}: Online: ${server.isOnline}, Checkpoint: ${server.currentCheckpoint}, Busy: ${server.isBusy}`);
-        });
+        console.log("Current server status:");
+        for (const server of this.servers) {
+            console.log(
+                `- ${server.name}: Online: ${server.isOnline}, Checkpoint: ${server.currentCheckpoint}, Busy: ${server.isBusy}`,
+            );
+        }
     }
 }
 

@@ -1,8 +1,8 @@
 // src/api/StableDiffusionClient.ts
 
-import axios from 'axios';
-import ServerManager from '../managers/ServerManager';
-import RequestQueue, { QueuedRequest } from '../managers/RequestQueue';
+import axios from "axios";
+import RequestQueue, { type QueuedRequest } from "../managers/RequestQueue";
+import ServerManager, { type ServerStatus } from "../managers/ServerManager";
 
 export interface ImageGenerationParams {
     prompt: string;
@@ -23,7 +23,7 @@ export interface ImageGenerationParams {
 
 export interface StatusUpdate {
     message: string;
-    type: 'info' | 'warning' | 'error';
+    type: "info" | "warning" | "error";
 }
 
 class StableDiffusionClient {
@@ -31,15 +31,20 @@ class StableDiffusionClient {
 
     async generateImage(
         params: ImageGenerationParams,
-        checkpoint: string,
-        onStatusUpdate: (update: StatusUpdate) => Promise<void>
+        checkpoint: string | null,
+        onStatusUpdate: (update: StatusUpdate) => Promise<void>,
     ): Promise<string> {
         return new Promise((resolve, reject) => {
-            const request: QueuedRequest = { params, checkpoint, resolve, reject, onStatusUpdate };
+            const request: QueuedRequest = {
+                params,
+                checkpoint,
+                resolve,
+                reject,
+                onStatusUpdate,
+            };
             this.enqueueOrProcess(request);
         });
     }
-
 
     private async enqueueOrProcess(request: QueuedRequest) {
         const server = ServerManager.getServerForCheckpoint(request.checkpoint);
@@ -47,36 +52,53 @@ class StableDiffusionClient {
         if (server && !server.isBusy) {
             await this.processRequest(request, server);
         } else {
-            await request.onStatusUpdate({ message: `Waiting in queue (position ${RequestQueue.size() + 1})`, type: 'info' });
+            await request.onStatusUpdate({
+                message: `Waiting in queue (position ${RequestQueue.size() + 1})`,
+                type: "info",
+            });
             RequestQueue.enqueue(request);
             this.processQueueAsync();
         }
     }
 
-    private async processRequest(request: QueuedRequest, server: any) {
-        await request.onStatusUpdate({ message: `Generating image on ${server.name}`, type: 'info' });
+    private async processRequest(request: QueuedRequest, server: ServerStatus) {
+        await request.onStatusUpdate({
+            message: `Generating image on ${server.name}`,
+            type: "info",
+        });
         try {
             const result = await this.sendRequest(server.url, request.params);
             ServerManager.releaseServer(server.name);
             request.resolve(result);
         } catch (error) {
-            console.error(`Error processing request on server ${server.name}:`, error);
+            console.error(
+                `Error processing request on server ${server.name}:`,
+                error,
+            );
             ServerManager.releaseServer(server.name);
-            await request.onStatusUpdate({ message: `Error generating image on ${server.name}`, type: 'error' });
+            await request.onStatusUpdate({
+                message: `Error generating image on ${server.name}`,
+                type: "error",
+            });
             request.reject(error);
         } finally {
             this.processQueueAsync();
         }
     }
 
-    private async sendRequest(url: string, params: ImageGenerationParams): Promise<string> {
+    private async sendRequest(
+        url: string,
+        params: ImageGenerationParams,
+    ): Promise<string> {
         const payload = {
             ...params,
             send_images: true,
             save_images: false,
         };
 
-        const response = await axios.post(`${url}/sdapi/v1/txt2img`, payload, { timeout: 900000 });
+        const response = await axios.post(`${url}/sdapi/v1/txt2img`, payload, {
+            timeout: 900000,
+        });
         return response.data.images[0]; // Base64 encoded image
     }
 
@@ -91,7 +113,9 @@ class StableDiffusionClient {
         while (!RequestQueue.isEmpty()) {
             const nextRequest = RequestQueue.dequeue();
             if (nextRequest) {
-                const server = ServerManager.getServerForCheckpoint(nextRequest.checkpoint);
+                const server = ServerManager.getServerForCheckpoint(
+                    nextRequest.checkpoint,
+                );
                 if (server && !server.isBusy) {
                     await this.processRequest(nextRequest, server);
                 } else {
