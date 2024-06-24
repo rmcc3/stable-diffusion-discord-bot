@@ -154,7 +154,7 @@ class ServerManager {
 
     private normalizeCheckpointName(checkpoint: string): string {
         // Remove file extensions and version hashes
-        return checkpoint.split('.')[0].split('[')[0].trim();
+        return checkpoint.split('.')[0]?.split('[')[0]?.trim() || ''
     }
 
     logServerStatus() {
