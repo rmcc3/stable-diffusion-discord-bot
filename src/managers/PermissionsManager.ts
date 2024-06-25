@@ -3,6 +3,7 @@
 import { GuildMember, Snowflake } from "discord.js";
 import sqlite3 from 'sqlite3';
 import { open, Database } from 'sqlite';
+import env from '../config/environment';
 
 enum PermissionLevel {
     BANNED = -1,
@@ -132,4 +133,4 @@ class PermissionsManager {
     }
 }
 
-export default new PermissionsManager(process.env.BOT_OWNER_ID || '');
+export default new PermissionsManager(env.BOT_OWNER_ID || '');

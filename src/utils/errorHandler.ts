@@ -2,6 +2,7 @@
 
 import { CustomError, ErrorCodes } from './CustomError';
 import { Client, TextChannel } from 'discord.js';
+import env from '../config/environment';
 
 export async function handleError(error: Error | CustomError, client: Client) {
     console.error('An error occurred:', error);
@@ -18,7 +19,7 @@ export async function handleError(error: Error | CustomError, client: Client) {
     }
 
     // Log to a Discord channel (optional)
-    const errorLogChannelId = process.env.ERROR_LOG_CHANNEL_ID;
+    const errorLogChannelId = env.ERROR_LOG_CHANNEL_ID;
     if (errorLogChannelId) {
         const channel = await client.channels.fetch(errorLogChannelId);
         if (channel instanceof TextChannel) {

@@ -1,13 +1,13 @@
 // src/index.ts
 
 import { Client, Collection, GatewayIntentBits } from "discord.js";
-import { config } from "dotenv";
+import env from './config/environment';
 import * as stableDiffusionCommand from "./commands/stableDiffusion";
 import * as setRoleCommand from "./commands/setRolePermissions";
 import ServerManager from "./managers/ServerManager";
 import { wrapHandler } from "./utils/errorHandler";
 
-config();
+
 
 interface CommandModule {
     data: { name: string };
@@ -45,4 +45,4 @@ client.on("interactionCreate", async (interaction) => {
     }
 });
 
-client.login(process.env.DISCORD_TOKEN);
+client.login(env.DISCORD_TOKEN);

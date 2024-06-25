@@ -5,6 +5,7 @@ import { Routes } from "discord-api-types/v9";
 import { config } from "dotenv";
 import * as stableDiffusionCommand from "./commands/stableDiffusion";
 import * as setRoleCommand from "./commands/setRolePermissions";
+import env from './config/environment';
 
 config();
 
@@ -14,7 +15,7 @@ const commands = [
 ];
 
 const rest = new REST({ version: "9" }).setToken(
-    process.env.DISCORD_TOKEN || "",
+    env.DISCORD_TOKEN || "",
 );
 
 (async () => {
@@ -23,7 +24,7 @@ const rest = new REST({ version: "9" }).setToken(
 
         // Register the commands to the Discord API
         await rest.put(
-            Routes.applicationCommands(process.env.CLIENT_ID || ""),
+            Routes.applicationCommands(env.CLIENT_ID || ""),
             {
                 body: commands,
             },
