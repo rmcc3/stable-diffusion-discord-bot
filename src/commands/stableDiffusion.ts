@@ -2,7 +2,7 @@
 
 import { SlashCommandBuilder } from "@discordjs/builders";
 import type {
-    AutocompleteInteraction,
+    AutocompleteInteraction, ChatInputCommandInteraction,
     CommandInteraction,
     GuildMember,
 } from "discord.js";
@@ -72,7 +72,7 @@ export const data = new SlashCommandBuilder()
             ),
     );
 
-export async function execute(interaction: CommandInteraction) {
+export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
     if (!interaction.isChatInputCommand()) return;
 
     if (
@@ -151,7 +151,7 @@ export async function execute(interaction: CommandInteraction) {
     }
 }
 
-export async function autocomplete(interaction: AutocompleteInteraction) {
+export async function autocomplete(interaction: AutocompleteInteraction): Promise<void> {
     const focusedValue = interaction.options.getFocused().toLowerCase();
     const choices = ServerManager.getAvailableCheckpoints().map(
         (checkpoint) => ({

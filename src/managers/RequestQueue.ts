@@ -16,7 +16,7 @@ export interface QueuedRequest {
 class RequestQueue {
     private queue: QueuedRequest[] = [];
 
-    enqueue(request: QueuedRequest) {
+    enqueue(request: QueuedRequest): void {
         this.queue.push(request);
     }
 

@@ -1,6 +1,13 @@
 // src/index.ts
 
-import { Client, Collection, GatewayIntentBits } from "discord.js";
+import {
+    AutocompleteInteraction,
+    ChatInputCommandInteraction,
+    Client,
+    Collection,
+    CommandInteraction,
+    GatewayIntentBits
+} from "discord.js";
 import env from './config/environment';
 import * as stableDiffusionCommand from "./commands/stableDiffusion";
 import * as setRoleCommand from "./commands/setRolePermissions";
@@ -11,8 +18,8 @@ import { wrapHandler } from "./utils/errorHandler";
 
 interface CommandModule {
     data: { name: string };
-    execute: Function;
-    autocomplete?: Function;
+    execute: (interaction: ChatInputCommandInteraction) => Promise<void>;
+    autocomplete?: (interaction: AutocompleteInteraction) => Promise<void>;
 }
 
 interface BotClient extends Client {

@@ -1,7 +1,7 @@
 // src/commands/setRolePermissions.ts
 
 import { SlashCommandBuilder } from "@discordjs/builders";
-import { ChatInputCommandInteraction, GuildMember, PermissionFlagsBits } from "discord.js";
+import {ChatInputCommandInteraction, GuildMember, PermissionFlagsBits} from "discord.js";
 import PermissionsManager from "../managers/PermissionsManager";
 
 export const data = new SlashCommandBuilder()
@@ -23,7 +23,7 @@ export const data = new SlashCommandBuilder()
             ))
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
-export async function execute(interaction: ChatInputCommandInteraction) {
+export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
     if (!interaction.guild) {
         await interaction.reply({ content: "This command can only be used in a server.", ephemeral: true });
         return;
@@ -35,8 +35,13 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         return;
     }
 
-    const role = interaction.options.getRole("role", true);
-    const level = interaction.options.getInteger("level", true);
+    const role = interaction.options.getRole("role");
+    const level = interaction.options.getInteger("level");
+
+    if (!role || level === null) {
+        await interaction.reply({ content: "Invalid role or permission level.", ephemeral: true });
+        return;
+    }
 
     await PermissionsManager.setRolePermission(interaction.guild.id, role.id, level);
     await interaction.reply(`Set permission level for role ${role.name} to ${level}`);

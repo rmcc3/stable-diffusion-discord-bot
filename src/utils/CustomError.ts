@@ -3,9 +3,9 @@
 export class CustomError extends Error {
     constructor(
         public override message: string,
-        public code: string,
+        public code: keyof typeof ErrorCodes,
         public status: number = 500,
-        public details?: any
+        public details?: unknown
     ) {
         super(message);
         this.name = this.constructor.name;

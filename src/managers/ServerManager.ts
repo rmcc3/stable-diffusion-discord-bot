@@ -22,7 +22,7 @@ class ServerManager {
     private servers: ServerStatus[];
 
     constructor() {
-        this.servers = apiServers.map((server) => ({
+        this.servers = apiServers.map((server): ServerStatus => ({
             ...server,
             isOnline: false,
             currentCheckpoint: null,
@@ -30,7 +30,7 @@ class ServerManager {
         }));
     }
 
-    async initialize() {
+    async initialize(): Promise<void> {
         await this.updateServerStatus();
         setInterval(() => this.updateServerStatus(), 20000);
     }
@@ -194,17 +194,16 @@ class ServerManager {
     }
 
     private normalizeCheckpointName(
-        checkpoint: string | null | undefined,
+        checkpoint: string | null | undefined
     ): string | null {
-        // Remove file extensions and version hashes
         return checkpoint?.split(".")[0]?.split("[")[0]?.trim() || null;
     }
 
-    logServerStatus() {
+    logServerStatus(): void {
         console.log("Current server status:");
         for (const server of this.servers) {
             console.log(
-                `- ${server.name}: Online: ${server.isOnline}, Checkpoint: ${server.currentCheckpoint}, Busy: ${server.isBusy}`,
+                `- ${server.name}: Online: ${server.isOnline}, Checkpoint: ${server.currentCheckpoint}, Busy: ${server.isBusy}`
             );
         }
     }

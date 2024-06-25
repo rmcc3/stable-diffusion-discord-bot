@@ -35,7 +35,7 @@ class StableDiffusionClient {
         checkpoint: string | null,
         onStatusUpdate: (update: StatusUpdate) => Promise<void>,
     ): Promise<string> {
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve, reject): void => {
             const request: QueuedRequest = {
                 params,
                 checkpoint,
@@ -47,7 +47,7 @@ class StableDiffusionClient {
         });
     }
 
-    private async enqueueOrProcess(request: QueuedRequest) {
+    private async enqueueOrProcess(request: QueuedRequest): Promise<void> {
         const server = ServerManager.getServerForCheckpoint(request.checkpoint);
 
         if (server && !server.isBusy) {
@@ -62,7 +62,7 @@ class StableDiffusionClient {
         }
     }
 
-    private async processRequest(request: QueuedRequest, server: ServerStatus) {
+    private async processRequest(request: QueuedRequest, server: ServerStatus): Promise<void> {
         await request.onStatusUpdate({
             message: `Generating image on ${server.name}`,
             type: "info",
@@ -139,14 +139,14 @@ class StableDiffusionClient {
         }
     }
 
-    private processQueueAsync() {
+    private processQueueAsync(): void {
         if (!this.isProcessingQueue) {
             this.isProcessingQueue = true;
             setImmediate(() => this.processQueue());
         }
     }
 
-    private async processQueue() {
+    private async processQueue(): Promise<void> {
         while (!RequestQueue.isEmpty()) {
             const nextRequest = RequestQueue.dequeue();
             if (nextRequest) {
