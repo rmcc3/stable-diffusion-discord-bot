@@ -77,9 +77,9 @@ export async function execute(interaction: CommandInteraction) {
 
     if (
         interaction.member &&
-        !PermissionsManager.canUseStableDiffusion(
+        !(await PermissionsManager.canUseStableDiffusion(
             interaction.member as GuildMember,
-        )
+        ))
     ) {
         await interaction.reply({
             content: "You do not have permission to use this command.",

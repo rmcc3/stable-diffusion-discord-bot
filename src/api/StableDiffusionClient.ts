@@ -1,8 +1,9 @@
 // src/api/StableDiffusionClient.ts
 
-import axios from "axios";
+import axios, {AxiosError} from "axios";
 import RequestQueue, { type QueuedRequest } from "../managers/RequestQueue";
 import ServerManager, { type ServerStatus } from "../managers/ServerManager";
+import { CustomError, ErrorCodes } from "../utils/CustomError";
 
 export interface ImageGenerationParams {
     prompt: string;
@@ -80,7 +81,16 @@ class StableDiffusionClient {
                 message: `Error generating image on ${server.name}`,
                 type: "error",
             });
-            request.reject(error);
+            if (error instanceof CustomError) {
+                request.reject(error);
+            } else {
+                request.reject(new CustomError(
+                    "An unexpected error occurred while generating the image",
+                    ErrorCodes.INTERNAL_SERVER_ERROR,
+                    500,
+                    { serverName: server.name }
+                ));
+            }
         } finally {
             this.processQueueAsync();
         }
@@ -96,10 +106,37 @@ class StableDiffusionClient {
             save_images: false,
         };
 
-        const response = await axios.post(`${url}/sdapi/v1/txt2img`, payload, {
-            timeout: 900000,
-        });
-        return response.data.images[0]; // Base64 encoded image
+        try {
+            const response = await axios.post(`${url}/sdapi/v1/txt2img`, payload, {
+                timeout: 900000,
+            });
+            return response.data.images[0]; // Base64 encoded image
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                const axiosError = error as AxiosError;
+                if (axiosError.response) {
+                    throw new CustomError(
+                        `API request failed: ${axiosError.response.statusText}`,
+                        ErrorCodes.API_ERROR,
+                        axiosError.response.status,
+                        { url, params }
+                    );
+                } else if (axiosError.request) {
+                    throw new CustomError(
+                        "No response received from API",
+                        ErrorCodes.API_ERROR,
+                        500,
+                        { url, params }
+                    );
+                }
+            }
+            throw new CustomError(
+                "An unexpected error occurred while sending the request",
+                ErrorCodes.INTERNAL_SERVER_ERROR,
+                500,
+                { url, params }
+            );
+        }
     }
 
     private processQueueAsync() {

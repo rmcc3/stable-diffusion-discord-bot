@@ -15,7 +15,7 @@ const apiServers: APIServer[] = [
             "Turbo\\level4sdxlAlphaV04",
             "epicphotogasm_ultimateFidelity",
         ],
-        loras: ["5chw4nz-dildo-merge-v1", "xpenis247.71sJ"],
+        loras: [""],
     },
     {
         name: "Orion (Slow)",

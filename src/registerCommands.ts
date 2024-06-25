@@ -4,10 +4,14 @@ import { REST } from "@discordjs/rest";
 import { Routes } from "discord-api-types/v9";
 import { config } from "dotenv";
 import * as stableDiffusionCommand from "./commands/stableDiffusion";
+import * as setRoleCommand from "./commands/setRolePermissions";
 
 config();
 
-const commands = [stableDiffusionCommand.data.toJSON()];
+const commands = [
+    stableDiffusionCommand.data.toJSON(),
+    setRoleCommand.data.toJSON(),
+];
 
 const rest = new REST({ version: "9" }).setToken(
     process.env.DISCORD_TOKEN || "",
