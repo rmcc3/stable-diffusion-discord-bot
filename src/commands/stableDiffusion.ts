@@ -11,6 +11,10 @@ import StableDiffusionClient, {
 } from "../api/StableDiffusionClient";
 import PermissionsManager from "../managers/PermissionsManager";
 import ServerManager, { type ServerStatus } from "../managers/ServerManager";
+import RateLimitManager from "../managers/RateLimitManager";
+
+// Initialize rate limit manager (10 usages per 5 minutes)
+const rateLimitManager = new RateLimitManager(10, 300);
 
 export const data = new SlashCommandBuilder()
     .setName("generate")
@@ -75,14 +79,21 @@ export const data = new SlashCommandBuilder()
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
     if (!interaction.isChatInputCommand()) return;
 
-    if (
-        interaction.member &&
-        !(await PermissionsManager.canUseStableDiffusion(
-            interaction.member as GuildMember,
-        ))
-    ) {
+    const member = interaction.member as GuildMember;
+    const userId = member.id;
+
+    if (!(await PermissionsManager.canUseStableDiffusion(member))) {
         await interaction.reply({
             content: "You do not have permission to use this command.",
+            ephemeral: true,
+        });
+        return;
+    }
+
+    if (!rateLimitManager.checkRateLimit(userId)) {
+        const cooldown = rateLimitManager.getRemainingCooldown(userId);
+        await interaction.reply({
+            content: `You've reached the rate limit. Please try again in ${Math.ceil(cooldown / 1000)} seconds.`,
             ephemeral: true,
         });
         return;
