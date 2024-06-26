@@ -13,6 +13,7 @@ import * as setRoleCommand from "./commands/setRolePermissions";
 import ServerManager from "./managers/ServerManager";
 import { wrapHandler } from "./utils/errorHandler";
 import RateLimitManager from "./managers/RateLimitManager";
+import { Mutex } from 'async-mutex';
 
 interface CommandModule {
     data: { name: string };

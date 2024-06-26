@@ -1,5 +1,6 @@
 // src/managers/ServerManager.ts
 
+import { Mutex } from 'async-mutex';
 import ServerManagerBase, { ServerStatus, APIServer } from "./ServerManagerBase";
 import apiServers from "../config/apiServers";
 
@@ -9,9 +10,32 @@ interface CheckpointInfo {
 }
 
 class ServerManager extends ServerManagerBase {
+    private serverMutexes: Map<string, Mutex> = new Map();
+
     constructor() {
         super(apiServers);
+        this.initializeMutexes();
         this.onServerStatusChanged(this.handleServerStatusChange.bind(this));
+    }
+
+    private initializeMutexes(): void {
+        for (const server of this.servers) {
+            this.serverMutexes.set(server.name, new Mutex());
+        }
+    }
+
+    override async setServerBusy(serverName: string, isBusy: boolean): Promise<void> {
+        const mutex = this.serverMutexes.get(serverName);
+        if (!mutex) {
+            throw new Error(`Mutex not found for server: ${serverName}`);
+        }
+
+        await mutex.acquire();
+        try {
+            super.setServerBusy(serverName, isBusy);
+        } finally {
+            mutex.release();
+        }
     }
 
     handleServerStatusChange(server: ServerStatus): void {
