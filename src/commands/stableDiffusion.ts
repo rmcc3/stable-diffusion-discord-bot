@@ -172,15 +172,20 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
 export async function autocomplete(interaction: AutocompleteInteraction): Promise<void> {
     const focusedValue = interaction.options.getFocused().toLowerCase();
-    const choices = ServerManager.getAvailableCheckpoints().map(
-        (checkpoint) => ({
-            name: `${checkpoint.name} (${checkpoint.servers.join(", ")})`,
-            value: checkpoint.name,
-        }),
-    );
-
-    const filtered = choices.filter((choice) =>
-        choice.name.toLowerCase().includes(focusedValue),
-    );
-    await interaction.respond(filtered.slice(0, 25));
+    try {
+        const choices = await Promise.race([
+            ServerManager.getAvailableCheckpoints(),
+            new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5500))
+        ]);
+        const filtered = choices
+            .map(checkpoint => ({
+                name: `${checkpoint.name} (${checkpoint.servers.join(", ")})`,
+                value: checkpoint.name,
+            }))
+            .filter(choice => choice.name.toLowerCase().includes(focusedValue));
+        await interaction.respond(filtered.slice(0, 25));
+    } catch (error) {
+        console.error('Error in autocomplete:', error);
+        await interaction.respond([{ name: 'Error fetching checkpoints', value: 'error' }]);
+    }
 }
