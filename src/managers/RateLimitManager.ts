@@ -11,10 +11,12 @@ export default class RateLimitManager {
     private limits: Collection<Snowflake, RateLimitInfo> = new Collection();
     private readonly maxUsages: number;
     private readonly timeWindow: number;
+    private cleanupInterval: NodeJS.Timeout;
 
     constructor(maxUsages: number, timeWindowSeconds: number) {
         this.maxUsages = maxUsages;
         this.timeWindow = timeWindowSeconds * 1000; // Convert to milliseconds
+        this.cleanupInterval = setInterval(() => this.cleanup(), this.timeWindow);
     }
 
     checkRateLimit(userId: Snowflake): boolean {
@@ -44,5 +46,15 @@ export default class RateLimitManager {
         }
         const elapsed = Date.now() - userLimit.lastUsage;
         return Math.max(0, this.timeWindow - elapsed);
+    }
+
+    private cleanup(): void {
+        const now = Date.now();
+        this.limits.sweep((limit) => now - limit.lastUsage > this.timeWindow);
+    }
+
+    // Call this method when shutting down the bot to prevent memory leaks
+    destroy(): void {
+        clearInterval(this.cleanupInterval);
     }
 }

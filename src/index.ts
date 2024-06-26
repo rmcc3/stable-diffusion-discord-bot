@@ -5,7 +5,6 @@ import {
     ChatInputCommandInteraction,
     Client,
     Collection,
-    CommandInteraction,
     GatewayIntentBits
 } from "discord.js";
 import env from './config/environment';
@@ -63,3 +62,17 @@ client.on("interactionCreate", async (interaction) => {
 });
 
 client.login(env.DISCORD_TOKEN);
+
+process.on('SIGINT', () => {
+    console.log('Bot is shutting down...');
+    globalRateLimitManager.destroy();
+    client.destroy();
+    process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+    console.log('Bot is shutting down...');
+    globalRateLimitManager.destroy();
+    client.destroy();
+    process.exit(0);
+});
