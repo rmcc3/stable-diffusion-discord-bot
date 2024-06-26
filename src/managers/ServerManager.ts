@@ -11,39 +11,38 @@ interface CheckpointInfo {
 class ServerManager extends ServerManagerBase {
     constructor() {
         super(apiServers);
+        this.onServerStatusChanged(this.handleServerStatusChange.bind(this));
+    }
+
+    handleServerStatusChange(server: ServerStatus): void {
+        console.log(`Server ${server.name} status changed:`, server);
+        // Add any additional logic here, such as updating UI or notifying users
     }
 
     getServerForCheckpoint(checkpoint: string | null): ServerStatus | null {
         const normalizedCheckpoint = this.normalizeCheckpointName(checkpoint);
-        console.log(
-            `Searching for server with checkpoint: ${normalizedCheckpoint}`
-        );
-        const availableServers = this.getAvailableServers();
-        console.log(
-            `Available servers: ${availableServers.map((s) => s.name).join(", ")}`
-        );
+        console.log(`Searching for server with checkpoint: ${normalizedCheckpoint}`);
 
-        // First, try to find a non-busy server with the correct checkpoint
+        const availableServers = this.getAvailableServers();
+        console.log(`Available servers: ${availableServers.map((s) => s.name).join(", ")}`);
+
+        // Find a non-busy server with the correct checkpoint
         const server = availableServers.find(
             (s) => s.currentCheckpoint === normalizedCheckpoint && !s.isBusy
         );
 
         if (server) {
-            console.log(
-                `Found non-busy server ${server.name} for checkpoint ${normalizedCheckpoint}`
-            );
+            console.log(`Found non-busy server ${server.name} for checkpoint ${normalizedCheckpoint}`);
             return server;
         }
 
-        // If all servers with the checkpoint are busy, return the first one that matches the checkpoint
+        // If no non-busy server found, return any server with the correct checkpoint
         const busyServer = availableServers.find(
             (s) => s.currentCheckpoint === normalizedCheckpoint
         );
 
         if (busyServer) {
-            console.log(
-                `All servers with checkpoint ${normalizedCheckpoint} are busy. Returning ${busyServer.name}`
-            );
+            console.log(`All servers with checkpoint ${normalizedCheckpoint} are busy. Returning ${busyServer.name}`);
             return busyServer;
         }
 
@@ -51,19 +50,18 @@ class ServerManager extends ServerManagerBase {
         return null;
     }
 
-    releaseServer(serverName: string): void {
-        this.setServerBusy(serverName, false);
-        console.log(`Released server ${serverName}`);
+    getServersForCheckpoint(checkpoint: string | null): ServerStatus[] {
+        const normalizedCheckpoint = this.normalizeCheckpointName(checkpoint);
+        return this.getAvailableServers().filter(
+            (s) => s.currentCheckpoint === normalizedCheckpoint
+        );
     }
 
     getAvailableServerWithAnyCheckpoint(): ServerStatus | null {
-        console.log(
-            "Searching for any available server with a loaded checkpoint"
-        );
+        console.log("Searching for any available server with a loaded checkpoint");
+
         const availableServers = this.getAvailableServers();
-        console.log(
-            `Available servers: ${availableServers.map((s) => s.name).join(", ")}`
-        );
+        console.log(`Available servers: ${availableServers.map((s) => s.name).join(", ")}`);
 
         // First, try to find a non-busy server
         const server = availableServers.find(
@@ -74,7 +72,6 @@ class ServerManager extends ServerManagerBase {
             console.log(
                 `Found non-busy server ${server.name} with checkpoint ${server.currentCheckpoint}`
             );
-            this.setServerBusy(server.name, true);
             return server;
         }
 
@@ -97,11 +94,8 @@ class ServerManager extends ServerManagerBase {
 
         for (const server of this.getAvailableServers()) {
             for (const checkpoint of server.checkpoints) {
-                const normalizedCheckpoint =
-                    this.normalizeCheckpointName(checkpoint);
-                if (!normalizedCheckpoint) {
-                    continue;
-                }
+                const normalizedCheckpoint = this.normalizeCheckpointName(checkpoint);
+                if (!normalizedCheckpoint) continue;
                 const servers = checkpointMap.get(normalizedCheckpoint) || [];
                 if (!servers.includes(server.name)) {
                     servers.push(server.name);
@@ -119,6 +113,10 @@ class ServerManager extends ServerManagerBase {
 
         console.log("Available checkpoints:", checkpoints);
         return checkpoints;
+    }
+
+    releaseServer(serverName: string): void {
+        this.setServerBusy(serverName, false);
     }
 }
 

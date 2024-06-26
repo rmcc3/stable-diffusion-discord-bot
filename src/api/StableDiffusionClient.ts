@@ -1,6 +1,6 @@
 // src/api/StableDiffusionClient.ts
 
-import axios, {AxiosError} from "axios";
+import axios, { AxiosError } from "axios";
 import RequestQueue, { type QueuedRequest } from "../managers/RequestQueue";
 import ServerManager, { type ServerStatus } from "../managers/ServerManager";
 import { CustomError, ErrorCodes } from "../utils/CustomError";
@@ -63,6 +63,7 @@ class StableDiffusionClient {
     }
 
     private async processRequest(request: QueuedRequest, server: ServerStatus): Promise<void> {
+        ServerManager.setServerBusy(server.name, true);
         await request.onStatusUpdate({
             message: `Generating image on ${server.name}`,
             type: "info",
@@ -156,18 +157,14 @@ class StableDiffusionClient {
                 if (server && !server.isBusy) {
                     await this.processRequest(nextRequest, server);
                 } else {
-                    // If no server is available, put the request back in the queue
+                    // If no server is available or all are busy, put the request back in the queue
                     RequestQueue.enqueue(nextRequest);
-                    break; // Exit the loop and try again later
+                    // Wait for a short time before trying again
+                    await new Promise(resolve => setTimeout(resolve, 5000));
                 }
             }
         }
         this.isProcessingQueue = false;
-
-        // If there are still items in the queue, schedule another process
-        if (!RequestQueue.isEmpty()) {
-            setTimeout(() => this.processQueueAsync(), 5000);
-        }
     }
 }
 

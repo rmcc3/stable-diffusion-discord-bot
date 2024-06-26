@@ -107,7 +107,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
         let server: ServerStatus | null = null;
         if (checkpoint) {
-            server = ServerManager.getServerForCheckpoint(checkpoint);
+            server = await ServerManager.getServerForCheckpoint(checkpoint);
             if (!server) {
                 await interaction.editReply(
                     `No server available with the specified checkpoint: ${checkpoint}`,
@@ -115,7 +115,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
                 return;
             }
         } else {
-            server = ServerManager.getAvailableServerWithAnyCheckpoint();
+            server = await ServerManager.getAvailableServerWithAnyCheckpoint();
             if (!server) {
                 await interaction.editReply(
                     "No server available with a loaded checkpoint.",
