@@ -4,6 +4,8 @@ import axios, { AxiosError } from "axios";
 import RequestQueue, { type QueuedRequest } from "../managers/RequestQueue";
 import ServerManager, { type ServerStatus } from "../managers/ServerManager";
 import { CustomError, ErrorCodes } from "../utils/CustomError";
+import PermissionsManager from "../managers/PermissionsManager";
+import {GuildMember} from "discord.js";
 
 export interface ImageGenerationParams {
     prompt: string;
@@ -34,6 +36,7 @@ class StableDiffusionClient {
         params: ImageGenerationParams,
         checkpoint: string | null,
         onStatusUpdate: (update: StatusUpdate) => Promise<void>,
+        member: GuildMember,
     ): Promise<string> {
         return new Promise((resolve, reject): void => {
             const request: QueuedRequest = {
@@ -42,6 +45,7 @@ class StableDiffusionClient {
                 resolve,
                 reject,
                 onStatusUpdate,
+                member,
             };
             this.enqueueOrProcess(request);
         });
@@ -69,6 +73,16 @@ class StableDiffusionClient {
             type: "info",
         });
         try {
+            // Recheck permissions in case they have changed during the queue wait
+            if (!(await PermissionsManager.canUseStableDiffusion(request.member))) {
+                // User longer has permission to use this command.
+                request.reject(new CustomError(
+                    "You no longer have permission to use this command.",
+                    ErrorCodes.UNAUTHORIZED,
+                    403,
+                ));
+            }
+
             const result = await this.sendRequest(server.url, request.params);
             ServerManager.releaseServer(server.name);
             request.resolve(result);

@@ -4,6 +4,7 @@ import type {
     ImageGenerationParams,
     StatusUpdate,
 } from "../api/StableDiffusionClient";
+import { GuildMember } from "discord.js";
 
 export interface QueuedRequest {
     params: ImageGenerationParams;
@@ -11,6 +12,7 @@ export interface QueuedRequest {
     resolve: (value: string) => void;
     reject: (reason?: unknown) => void;
     onStatusUpdate: (update: StatusUpdate) => Promise<void>;
+    member: GuildMember;
 }
 
 class RequestQueue {

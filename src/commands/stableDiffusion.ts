@@ -147,6 +147,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
             },
             server.currentCheckpoint,
             onStatusUpdate,
+            member,
         );
 
         const buffer = Buffer.from(image, "base64");
