@@ -34,6 +34,8 @@ const env = {
     DISCORD_TOKEN: stringValidator(process.env.DISCORD_TOKEN),
     CLIENT_ID: stringValidator(process.env.CLIENT_ID),
     BOT_OWNER_ID: stringValidator(process.env.BOT_OWNER_ID),
+    WEBHOOK_PORT: optionalValidator(numberValidator, 3000)(process.env.WEBHOOK_PORT),
+
     ERROR_LOG_CHANNEL_ID: optionalValidator(stringValidator, '')(process.env.ERROR_LOG_CHANNEL_ID),
     NODE_ENV: optionalValidator(stringValidator, 'development')(process.env.NODE_ENV),
     DEBUG_MODE: optionalValidator(booleanValidator, false)(process.env.DEBUG_MODE),
