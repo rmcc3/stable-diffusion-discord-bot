@@ -8,6 +8,7 @@ interface RateLimitInfo {
 }
 
 export default class RateLimitManager {
+    private globalLimit: RateLimitInfo = { lastUsage: 0, usageCount: 0 };
     private limits: Collection<Snowflake, RateLimitInfo> = new Collection();
     private readonly maxUsages: number;
     private readonly timeWindow: number;
@@ -22,6 +23,16 @@ export default class RateLimitManager {
     checkRateLimit(userId: Snowflake): boolean {
         const now = Date.now();
         const userLimit = this.limits.get(userId) || { lastUsage: 0, usageCount: 0 };
+
+        // Check global limit
+        if (now - this.globalLimit.lastUsage > this.timeWindow) {
+            this.globalLimit.usageCount = 1;
+            this.globalLimit.lastUsage = now;
+        } else if (this.globalLimit.usageCount >= this.maxUsages * 10) {
+            return false;
+        } else {
+            this.globalLimit.usageCount++;
+        }
 
         if (now - userLimit.lastUsage > this.timeWindow) {
             // Reset if the time window has passed
