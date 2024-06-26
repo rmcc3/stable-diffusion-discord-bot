@@ -151,6 +151,12 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         );
 
         const buffer = Buffer.from(image, "base64");
+
+        if (buffer.length > 20 * 1024 * 1024) { // 20MB limit
+            await interaction.editReply("The generated image is too large to upload to Discord. Please try again with smaller dimensions.");
+            return;
+        }
+
         await interaction.editReply({
             content: "Image generated successfully!",
             files: [{ attachment: buffer, name: "generated_image.png" }],
