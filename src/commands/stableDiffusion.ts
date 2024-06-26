@@ -118,18 +118,18 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
         let server: ServerStatus | null = null;
         if (checkpoint) {
-            server = await ServerManager.getServerForCheckpoint(checkpoint);
+            server = ServerManager.getServerForCheckpoint(checkpoint);
             if (!server) {
                 await interaction.editReply(
-                    `No server available with the specified checkpoint: ${checkpoint}`,
+                    `The checkpoint "${checkpoint}" is not currently available on any server. Please try a different checkpoint or retry later.`
                 );
                 return;
             }
         } else {
-            server = await ServerManager.getAvailableServerWithAnyCheckpoint();
+            server = ServerManager.getAvailableServerWithAnyCheckpoint();
             if (!server) {
                 await interaction.editReply(
-                    "No server available with a loaded checkpoint.",
+                    "No server is currently available with a loaded checkpoint. Please try again later."
                 );
                 return;
             }
