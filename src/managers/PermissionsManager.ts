@@ -157,6 +157,25 @@ class PermissionsManager {
         const level = await this.getPermissionLevel(member);
         return level >= requiredLevel;
     }
+
+    public async getUserPriority(member: GuildMember): Promise<number> {
+        const permissionLevel = await this.getPermissionLevel(member);
+        switch (permissionLevel) {
+            case PermissionLevel.BOT_OWNER:
+                return 100;
+            case PermissionLevel.ADMIN:
+                return 90;
+            case PermissionLevel.MODERATOR:
+                return 80;
+            case PermissionLevel.TRUSTED:
+                return 70;
+            case PermissionLevel.USER:
+                return 50;
+            case PermissionLevel.BANNED:
+            default:
+                return 0;
+        }
+    }
 }
 
 export default new PermissionsManager(env.BOT_OWNER_ID || '');

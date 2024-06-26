@@ -13,7 +13,6 @@ import * as setRoleCommand from "./commands/setRolePermissions";
 import ServerManager from "./managers/ServerManager";
 import { wrapHandler } from "./utils/errorHandler";
 import RateLimitManager from "./managers/RateLimitManager";
-import { Mutex } from 'async-mutex';
 
 interface CommandModule {
     data: { name: string };
@@ -41,11 +40,18 @@ client.once("ready", () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
+    console.log(`Received interaction: ${interaction.type}`);
+
     if (interaction.isChatInputCommand()) {
+        console.log(`Received command: ${interaction.commandName}`);
         const command = client.commands.get(interaction.commandName);
-        if (!command) return;
+        if (!command) {
+            console.log(`Command not found: ${interaction.commandName}`);
+            return;
+        }
 
         if (interaction.commandName === 'generate' && !globalRateLimitManager.checkRateLimit('global')) {
+            console.log(`Rate limit exceeded for generate command`);
             await interaction.reply({
                 content: "The bot is currently experiencing high traffic. Please try again later.",
                 ephemeral: true
@@ -53,12 +59,24 @@ client.on("interactionCreate", async (interaction) => {
             return;
         }
 
-        await wrapHandler(command.execute, client)(interaction);
+        try {
+            await wrapHandler(command.execute, client)(interaction);
+        } catch (error) {
+            console.error(`Error executing command ${interaction.commandName}:`, error);
+        }
     } else if (interaction.isAutocomplete()) {
+        console.log(`Received autocomplete interaction for command: ${interaction.commandName}`);
         const command = client.commands.get(interaction.commandName);
-        if (!command || !command.autocomplete) return;
+        if (!command || !command.autocomplete) {
+            console.log(`Autocomplete not found for command: ${interaction.commandName}`);
+            return;
+        }
 
-        await wrapHandler(command.autocomplete, client)(interaction);
+        try {
+            await wrapHandler(command.autocomplete, client)(interaction);
+        } catch (error) {
+            console.error(`Error handling autocomplete for ${interaction.commandName}:`, error);
+        }
     }
 });
 

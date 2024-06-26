@@ -1,5 +1,3 @@
-// src/managers/RequestQueue.ts
-
 import type {
     ImageGenerationParams,
     StatusUpdate,
@@ -13,13 +11,20 @@ export interface QueuedRequest {
     reject: (reason?: unknown) => void;
     onStatusUpdate: (update: StatusUpdate) => Promise<void>;
     member: GuildMember;
+    priority: number;
+    timestamp: number;
 }
 
 class RequestQueue {
     private queue: QueuedRequest[] = [];
 
     enqueue(request: QueuedRequest): void {
-        this.queue.push(request);
+        const index = this.queue.findIndex(item => item.priority < request.priority);
+        if (index === -1) {
+            this.queue.push(request);
+        } else {
+            this.queue.splice(index, 0, request);
+        }
     }
 
     dequeue(): QueuedRequest | undefined {
@@ -32,6 +37,10 @@ class RequestQueue {
 
     size(): number {
         return this.queue.length;
+    }
+
+    getQueuePosition(userId: string): number {
+        return this.queue.findIndex(request => request.member.id === userId);
     }
 }
 

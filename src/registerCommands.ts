@@ -23,7 +23,7 @@ const rest = new REST({ version: "9" }).setToken(
         console.log("Started refreshing application (/) commands.");
 
         // Register the commands to the Discord API
-        await rest.put(
+        const result = await rest.put(
             Routes.applicationCommands(env.CLIENT_ID || ""),
             {
                 body: commands,
@@ -31,7 +31,8 @@ const rest = new REST({ version: "9" }).setToken(
         );
 
         console.log("Successfully reloaded application (/) commands.");
+        console.log("Registered commands:", result);
     } catch (error) {
-        console.error(error);
+        console.error("Error registering commands:", error);
     }
 })();

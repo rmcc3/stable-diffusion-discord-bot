@@ -3,12 +3,9 @@
 import { SlashCommandBuilder } from "@discordjs/builders";
 import type {
     AutocompleteInteraction, ChatInputCommandInteraction,
-    CommandInteraction,
     GuildMember,
 } from "discord.js";
-import StableDiffusionClient, {
-    type StatusUpdate,
-} from "../api/StableDiffusionClient";
+import StableDiffusionClient, { type StatusUpdate } from "../api/StableDiffusionClient";
 import PermissionsManager from "../managers/PermissionsManager";
 import ServerManager, { type ServerStatus } from "../managers/ServerManager";
 import RateLimitManager from "../managers/RateLimitManager";
@@ -77,12 +74,17 @@ export const data = new SlashCommandBuilder()
     );
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
+    console.log("Entering execute function");
     if (!interaction.isChatInputCommand()) return;
 
     const member = interaction.member as GuildMember;
     const userId = member.id;
 
+    console.log(`Received /generate command from user ${member.user.tag}`);
+
+    console.log("Checking permissions");
     if (!(await PermissionsManager.canUseStableDiffusion(member))) {
+        console.log(`User ${member.user.tag} does not have permission to use Stable Diffusion`);
         await interaction.reply({
             content: "You do not have permission to use this command.",
             ephemeral: true,
@@ -90,8 +92,10 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         return;
     }
 
+    console.log("Checking rate limit");
     if (!rateLimitManager.checkRateLimit(userId)) {
         const cooldown = rateLimitManager.getRemainingCooldown(userId);
+        console.log(`User ${member.user.tag} has reached the rate limit. Cooldown: ${cooldown}ms`);
         await interaction.reply({
             content: `You've reached the rate limit. Please try again in ${Math.ceil(cooldown / 1000)} seconds.`,
             ephemeral: true,
@@ -99,9 +103,9 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         return;
     }
 
+    console.log("Parsing command options");
     const prompt = interaction.options.getString("prompt", true);
-    const negative_prompt =
-        interaction.options.getString("negative_prompt") || "";
+    const negative_prompt = interaction.options.getString("negative_prompt") || "";
     const steps = interaction.options.getInteger("steps", true);
     const checkpoint = interaction.options.getString("checkpoint");
     const width = interaction.options.getInteger("width") || 1024;
@@ -109,17 +113,24 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     const cfg_scale = interaction.options.getNumber("cfg_scale") || 2;
     const sampler = interaction.options.getString("sampler") || "DPM++ SDE";
 
+    console.log(`Generate command parameters:`, { prompt, negative_prompt, steps, checkpoint, width, height, cfg_scale, sampler });
+
+    console.log("Deferring reply");
     await interaction.deferReply();
 
     try {
+        console.log("Setting up status update callback");
         const onStatusUpdate = async (update: StatusUpdate) => {
+            console.log(`Status update for user ${member.user.tag}: ${update.message}`);
             await interaction.editReply(update.message);
         };
 
+        console.log("Finding server for checkpoint");
         let server: ServerStatus | null = null;
         if (checkpoint) {
             server = ServerManager.getServerForCheckpoint(checkpoint);
             if (!server) {
+                console.log(`No server available for checkpoint ${checkpoint}`);
                 await interaction.editReply(
                     `The checkpoint "${checkpoint}" is not currently available on any server. Please try a different checkpoint or retry later.`
                 );
@@ -128,6 +139,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         } else {
             server = ServerManager.getAvailableServerWithAnyCheckpoint();
             if (!server) {
+                console.log(`No server available with any checkpoint`);
                 await interaction.editReply(
                     "No server is currently available with a loaded checkpoint. Please try again later."
                 );
@@ -135,6 +147,13 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
             }
         }
 
+        console.log(`Selected server for generation: ${server.name}`);
+
+        console.log("Getting user priority");
+        const priority = await PermissionsManager.getUserPriority(member);
+        console.log(`User priority for ${member.user.tag}: ${priority}`);
+
+        console.log("Calling StableDiffusionClient.generateImage");
         const image = await StableDiffusionClient.generateImage(
             {
                 prompt,
@@ -148,26 +167,34 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
             server.currentCheckpoint,
             onStatusUpdate,
             member,
+            priority
         );
 
+        console.log(`Image generated successfully for user ${member.user.tag}`);
+
+        console.log("Creating buffer from generated image");
         const buffer = Buffer.from(image, "base64");
 
         if (buffer.length > 20 * 1024 * 1024) { // 20MB limit
+            console.log(`Generated image exceeds Discord's file size limit`);
             await interaction.editReply("The generated image is too large to upload to Discord. Please try again with smaller dimensions.");
             return;
         }
 
+        console.log("Sending reply with generated image");
         await interaction.editReply({
             content: "Image generated successfully!",
             files: [{ attachment: buffer, name: "generated_image.png" }],
         });
     } catch (error) {
-        console.error("Error generating image:", error);
+        console.error(`Error generating image for user ${member.user.tag}:`, error);
         await interaction.followUp({
             content: "There was an error generating the image. Please try again later.",
             ephemeral: true
         });
     }
+
+    console.log("Exiting execute function");
 }
 
 export async function autocomplete(interaction: AutocompleteInteraction): Promise<void> {

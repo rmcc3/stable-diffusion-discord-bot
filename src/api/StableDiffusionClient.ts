@@ -37,7 +37,9 @@ class StableDiffusionClient {
         checkpoint: string | null,
         onStatusUpdate: (update: StatusUpdate) => Promise<void>,
         member: GuildMember,
+        priority: number,
     ): Promise<string> {
+        console.log(`Entering generateImage for user ${member.user.tag} with priority ${priority}`);
         return new Promise((resolve, reject): void => {
             const request: QueuedRequest = {
                 params,
@@ -46,6 +48,8 @@ class StableDiffusionClient {
                 reject,
                 onStatusUpdate,
                 member,
+                priority,
+                timestamp: Date.now(),
             };
             this.enqueueOrProcess(request);
         });
@@ -53,12 +57,16 @@ class StableDiffusionClient {
 
     private async enqueueOrProcess(request: QueuedRequest): Promise<void> {
         const server = ServerManager.getServerForCheckpoint(request.checkpoint);
+        console.log(`Server for checkpoint ${request.checkpoint}: ${server?.name || 'None available'}`);
 
         if (server && !server.isBusy) {
+            console.log(`Processing request immediately on server ${server.name}`);
             await this.processRequest(request, server);
         } else {
+            const queuePosition = RequestQueue.getQueuePosition(request.member.id);
+            console.log(`Enqueueing request for user ${request.member.user.tag} at position ${queuePosition + 1}`);
             await request.onStatusUpdate({
-                message: `Waiting in queue (position ${RequestQueue.size() + 1})`,
+                message: `Waiting in queue (position ${queuePosition + 1})`,
                 type: "info",
             });
             RequestQueue.enqueue(request);
@@ -67,30 +75,30 @@ class StableDiffusionClient {
     }
 
     private async processRequest(request: QueuedRequest, server: ServerStatus): Promise<void> {
+        console.log(`Processing request on server ${server.name}`);
         await ServerManager.setServerBusy(server.name, true);
         await request.onStatusUpdate({
             message: `Generating image on ${server.name}`,
             type: "info",
         });
         try {
-            // Recheck permissions in case they have changed during the queue wait
             if (!(await PermissionsManager.canUseStableDiffusion(request.member))) {
-                // User longer has permission to use this command.
+                console.log(`User ${request.member.user.tag} no longer has permission to use this command`);
                 request.reject(new CustomError(
                     "You no longer have permission to use this command.",
                     ErrorCodes.UNAUTHORIZED,
                     403,
                 ));
+                return;
             }
 
+            console.log(`Sending request to server ${server.name}`);
             const result = await this.sendRequest(server.url, request.params);
+            console.log(`Request processed successfully on server ${server.name}`);
             ServerManager.releaseServer(server.name);
             request.resolve(result);
         } catch (error) {
-            console.error(
-                `Error processing request on server ${server.name}:`,
-                error,
-            );
+            console.error(`Error processing request on server ${server.name}:`, error);
             ServerManager.releaseServer(server.name);
             await request.onStatusUpdate({
                 message: `Error generating image on ${server.name}`,
@@ -115,6 +123,7 @@ class StableDiffusionClient {
         url: string,
         params: ImageGenerationParams,
     ): Promise<string> {
+        console.log(`Sending request to URL: ${url}`);
         const payload = {
             ...params,
             send_images: true,
@@ -122,11 +131,14 @@ class StableDiffusionClient {
         };
 
         try {
+            console.log(`Request payload:`, JSON.stringify(payload));
             const response = await axios.post(`${url}/sdapi/v1/txt2img`, payload, {
                 timeout: 900000,
             });
+            console.log(`Received response from server`);
             return response.data.images[0]; // Base64 encoded image
         } catch (error) {
+            console.error(`Error in sendRequest:`, error);
             if (axios.isAxiosError(error)) {
                 const axiosError = error as AxiosError;
                 if (axiosError.response) {
@@ -162,10 +174,12 @@ class StableDiffusionClient {
     }
 
     private async processQueue(retryCount: number = 0): Promise<void> {
+        console.log(`Processing queue, retry count: ${retryCount}`);
         const MAX_RETRIES = 10;
         while (!RequestQueue.isEmpty() && retryCount < MAX_RETRIES) {
             const nextRequest = RequestQueue.dequeue();
             if (nextRequest) {
+                console.log(`Processing next request for user ${nextRequest.member.user.tag}`);
                 const server = ServerManager.getServerForCheckpoint(
                     nextRequest.checkpoint,
                 );
@@ -173,6 +187,7 @@ class StableDiffusionClient {
                     await this.processRequest(nextRequest, server);
                     retryCount = 0; // Reset retry count on successful processing
                 } else {
+                    console.log(`No available server, re-enqueueing request`);
                     RequestQueue.enqueue(nextRequest);
                     retryCount++;
                     await new Promise(resolve => setTimeout(resolve, 5000));
