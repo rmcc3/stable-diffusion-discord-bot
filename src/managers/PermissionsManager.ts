@@ -48,34 +48,60 @@ class PermissionsManager {
         `);
     }
 
+    private async runInTransaction<T>(operation: () => Promise<T>): Promise<T> {
+        if (!this.db) throw new Error("Database not initialized");
+
+        await this.db.run('BEGIN');
+        try {
+            const result = await operation();
+            await this.db.run('COMMIT');
+            return result;
+        } catch (error) {
+            await this.db.run('ROLLBACK');
+            throw error;
+        }
+    }
+
     public async setRolePermission(guildId: Snowflake, roleId: Snowflake, level: PermissionLevel): Promise<void> {
-        await this.db?.run(
-            'INSERT OR REPLACE INTO role_permissions (guild_id, role_id, permission_level) VALUES (?, ?, ?)',
-            [guildId, roleId, level]
-        );
+        await this.runInTransaction(async () => {
+            await this.db?.run(
+                'INSERT OR REPLACE INTO role_permissions (guild_id, role_id, permission_level) VALUES (?, ?, ?)',
+                [guildId, roleId, level]
+            );
+        });
     }
 
     public async setUserPermission(guildId: Snowflake, userId: Snowflake, level: PermissionLevel): Promise<void> {
-        await this.db?.run(
-            'INSERT OR REPLACE INTO user_permissions (guild_id, user_id, permission_level) VALUES (?, ?, ?)',
-            [guildId, userId, level]
-        );
+        await this.runInTransaction(async () => {
+            await this.db?.run(
+                'INSERT OR REPLACE INTO user_permissions (guild_id, user_id, permission_level) VALUES (?, ?, ?)',
+                [guildId, userId, level]
+            );
+        });
     }
 
     public async removeRolePermission(guildId: Snowflake, roleId: Snowflake): Promise<void> {
-        await this.db?.run('DELETE FROM role_permissions WHERE guild_id = ? AND role_id = ?', [guildId, roleId]);
+        await this.runInTransaction(async () => {
+            await this.db?.run('DELETE FROM role_permissions WHERE guild_id = ? AND role_id = ?', [guildId, roleId]);
+        });
     }
 
     public async removeUserPermission(guildId: Snowflake, userId: Snowflake): Promise<void> {
-        await this.db?.run('DELETE FROM user_permissions WHERE guild_id = ? AND user_id = ?', [guildId, userId]);
+        await this.runInTransaction(async () => {
+            await this.db?.run('DELETE FROM user_permissions WHERE guild_id = ? AND user_id = ?', [guildId, userId]);
+        });
     }
 
     public async globalBanUser(userId: Snowflake): Promise<void> {
-        await this.db?.run('INSERT OR REPLACE INTO global_bans (user_id) VALUES (?)', [userId]);
+        await this.runInTransaction(async () => {
+            await this.db?.run('INSERT OR REPLACE INTO global_bans (user_id) VALUES (?)', [userId]);
+        });
     }
 
     public async removeGlobalBan(userId: Snowflake): Promise<void> {
-        await this.db?.run('DELETE FROM global_bans WHERE user_id = ?', [userId]);
+        await this.runInTransaction(async () => {
+            await this.db?.run('DELETE FROM global_bans WHERE user_id = ?', [userId]);
+        });
     }
 
     public async isGloballyBanned(userId: Snowflake): Promise<boolean> {

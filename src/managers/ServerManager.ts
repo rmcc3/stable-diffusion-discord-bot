@@ -40,7 +40,6 @@ class ServerManager extends ServerManagerBase {
 
     handleServerStatusChange(server: ServerStatus): void {
         console.log(`Server ${server.name} status changed:`, server);
-        // Add any additional logic here, such as updating UI or notifying users
     }
 
     getServerForCheckpoint(checkpoint: string | null): ServerStatus | null {
