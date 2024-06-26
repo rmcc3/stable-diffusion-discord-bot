@@ -63,7 +63,7 @@ class StableDiffusionClient {
     }
 
     private async processRequest(request: QueuedRequest, server: ServerStatus): Promise<void> {
-        ServerManager.setServerBusy(server.name, true);
+        await ServerManager.setServerBusy(server.name, true);
         await request.onStatusUpdate({
             message: `Generating image on ${server.name}`,
             type: "info",
@@ -147,8 +147,9 @@ class StableDiffusionClient {
         }
     }
 
-    private async processQueue(): Promise<void> {
-        while (!RequestQueue.isEmpty()) {
+    private async processQueue(retryCount: number = 0): Promise<void> {
+        const MAX_RETRIES = 10;
+        while (!RequestQueue.isEmpty() && retryCount < MAX_RETRIES) {
             const nextRequest = RequestQueue.dequeue();
             if (nextRequest) {
                 const server = ServerManager.getServerForCheckpoint(
@@ -156,15 +157,18 @@ class StableDiffusionClient {
                 );
                 if (server && !server.isBusy) {
                     await this.processRequest(nextRequest, server);
+                    retryCount = 0; // Reset retry count on successful processing
                 } else {
-                    // If no server is available or all are busy, put the request back in the queue
                     RequestQueue.enqueue(nextRequest);
-                    // Wait for a short time before trying again
+                    retryCount++;
                     await new Promise(resolve => setTimeout(resolve, 5000));
                 }
             }
         }
         this.isProcessingQueue = false;
+        if (retryCount >= MAX_RETRIES) {
+            console.error("Max retries reached in processQueue");
+        }
     }
 }
 
