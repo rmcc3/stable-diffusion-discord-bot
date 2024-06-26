@@ -156,9 +156,10 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         });
     } catch (error) {
         console.error("Error generating image:", error);
-        await interaction.editReply(
-            "There was an error generating the image. Please try again later.",
-        );
+        await interaction.followUp({
+            content: "There was an error generating the image. Please try again later.",
+            ephemeral: true
+        });
     }
 }
 
