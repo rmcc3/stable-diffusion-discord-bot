@@ -22,6 +22,7 @@ export interface ImageGenerationParams {
     tiling?: boolean;
     enable_hr?: boolean;
     sampler_index?: string;
+    use_controlnet?: boolean;
 }
 
 export interface StatusUpdate {
@@ -56,7 +57,9 @@ class StableDiffusionClient {
     }
 
     private async enqueueOrProcess(request: QueuedRequest): Promise<void> {
-        const server = ServerManager.getServerForCheckpoint(request.checkpoint);
+        const server = request.params.use_controlnet
+            ? ServerManager.getServerForCheckpointWithControlNet(request.checkpoint)
+            : ServerManager.getServerForCheckpoint(request.checkpoint);
         console.log(`Server for checkpoint ${request.checkpoint}: ${server?.name || 'None available'}`);
 
         if (server && !server.isBusy) {

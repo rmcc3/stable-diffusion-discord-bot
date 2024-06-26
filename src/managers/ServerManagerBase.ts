@@ -11,6 +11,8 @@ export interface ServerStatus {
     isBusy: boolean;
     checkpoints: string[];
     loras: string[];
+    hasControlNet: boolean;
+    extensions: ExtensionInfo[];
 }
 
 export interface APIServer {
@@ -18,6 +20,12 @@ export interface APIServer {
     url: string;
     checkpoints: string[];
     loras: string[];
+}
+
+interface ExtensionInfo {
+    name: string;
+    enabled: boolean;
+    version: string;
 }
 
 type ServerStatusCallback = (server: ServerStatus) => void;
@@ -34,6 +42,8 @@ export default class ServerManagerBase {
             isOnline: false,
             currentCheckpoint: null,
             isBusy: false,
+            hasControlNet: false,
+            extensions: [],
         }));
         this.app = express();
         this.setupWebhookEndpoint();
@@ -84,14 +94,27 @@ export default class ServerManagerBase {
         }
 
         try {
-            const response = await axios.get(`${server.url}/sdapi/v1/options`, { timeout: 5000 });
-            const newStatus: Partial<ServerStatus> = {
+            const [optionsResponse, extensionsResponse] = await Promise.all([
+                axios.get(`${server.url}/sdapi/v1/options`, { timeout: 5000 }),
+                axios.get(`${server.url}/sdapi/v1/extensions`, { timeout: 5000 })
+            ]);
+
+            const extensions = extensionsResponse.data as ExtensionInfo[];
+            const hasControlNet = extensions.some(ext => ext.name === "sd-webui-controlnet" && ext.enabled);
+
+            this.updateServerStatus(serverName, {
                 isOnline: true,
-                currentCheckpoint: this.normalizeCheckpointName(response.data.sd_model_checkpoint),
-            };
-            this.updateServerStatus(serverName, newStatus);
+                currentCheckpoint: this.normalizeCheckpointName(optionsResponse.data.sd_model_checkpoint),
+                hasControlNet: hasControlNet,
+                extensions: extensions,
+            });
         } catch (error) {
-            this.updateServerStatus(serverName, { isOnline: false, currentCheckpoint: null });
+            this.updateServerStatus(serverName, {
+                isOnline: false,
+                currentCheckpoint: null,
+                hasControlNet: false,
+                extensions: [],
+            });
         }
     }
 

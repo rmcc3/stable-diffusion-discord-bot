@@ -138,6 +138,37 @@ class ServerManager extends ServerManagerBase {
         return checkpoints;
     }
 
+    getServerForCheckpointWithControlNet(checkpoint: string | null): ServerStatus | null {
+        const normalizedCheckpoint = this.normalizeCheckpointName(checkpoint);
+        console.log(`Searching for server with checkpoint: ${normalizedCheckpoint} and ControlNet support`);
+
+        const availableServers = this.getAvailableServers();
+        console.log(`Available servers: ${availableServers.map((s) => s.name).join(", ")}`);
+
+        // Find a non-busy server with the correct checkpoint and ControlNet support
+        const server = availableServers.find(
+            (s) => s.currentCheckpoint === normalizedCheckpoint && !s.isBusy && s.hasControlNet
+        );
+
+        if (server) {
+            console.log(`Found non-busy server ${server.name} for checkpoint ${normalizedCheckpoint} with ControlNet support`);
+            return server;
+        }
+
+        // If no non-busy server found, return any server with the correct checkpoint and ControlNet support
+        const busyServer = availableServers.find(
+            (s) => s.currentCheckpoint === normalizedCheckpoint && s.hasControlNet
+        );
+
+        if (busyServer) {
+            console.log(`All servers with checkpoint ${normalizedCheckpoint} and ControlNet support are busy. Returning ${busyServer.name}`);
+            return busyServer;
+        }
+
+        console.log(`No server found for checkpoint ${normalizedCheckpoint} with ControlNet support`);
+        return null;
+    }
+
     releaseServer(serverName: string): void {
         this.setServerBusy(serverName, false);
     }
