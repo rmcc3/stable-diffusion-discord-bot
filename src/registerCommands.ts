@@ -31,7 +31,6 @@ const rest = new REST({ version: "9" }).setToken(
         );
 
         console.log("Successfully reloaded application (/) commands.");
-        console.log("Registered commands:", result);
     } catch (error) {
         console.error("Error registering commands:", error);
     }

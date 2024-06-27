@@ -40,18 +40,13 @@ client.once("ready", () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
-    console.log(`Received interaction: ${interaction.type}`);
-
     if (interaction.isChatInputCommand()) {
-        console.log(`Received command: ${interaction.commandName}`);
         const command = client.commands.get(interaction.commandName);
         if (!command) {
-            console.log(`Command not found: ${interaction.commandName}`);
             return;
         }
 
         if (interaction.commandName === 'generate' && !globalRateLimitManager.checkRateLimit('global')) {
-            console.log(`Rate limit exceeded for generate command`);
             await interaction.reply({
                 content: "The bot is currently experiencing high traffic. Please try again later.",
                 ephemeral: true
@@ -65,10 +60,8 @@ client.on("interactionCreate", async (interaction) => {
             console.error(`Error executing command ${interaction.commandName}:`, error);
         }
     } else if (interaction.isAutocomplete()) {
-        console.log(`Received autocomplete interaction for command: ${interaction.commandName}`);
         const command = client.commands.get(interaction.commandName);
         if (!command || !command.autocomplete) {
-            console.log(`Autocomplete not found for command: ${interaction.commandName}`);
             return;
         }
 

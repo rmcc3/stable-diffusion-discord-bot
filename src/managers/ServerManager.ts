@@ -39,15 +39,12 @@ class ServerManager extends ServerManagerBase {
     }
 
     handleServerStatusChange(server: ServerStatus): void {
-        console.log(`Server ${server.name} status changed:`, server);
+        console.log(`Server ${server.name} status changed: ${server.isOnline ? "Online" : "Offline"}`);
     }
 
     getServerForCheckpoint(checkpoint: string | null): ServerStatus | null {
         const normalizedCheckpoint = this.normalizeCheckpointName(checkpoint);
-        console.log(`Searching for server with checkpoint: ${normalizedCheckpoint}`);
-
         const availableServers = this.getAvailableServers();
-        console.log(`Available servers: ${availableServers.map((s) => s.name).join(", ")}`);
 
         // Find a non-busy server with the correct checkpoint
         const server = availableServers.find(
@@ -55,7 +52,6 @@ class ServerManager extends ServerManagerBase {
         );
 
         if (server) {
-            console.log(`Found non-busy server ${server.name} for checkpoint ${normalizedCheckpoint}`);
             return server;
         }
 
@@ -65,11 +61,8 @@ class ServerManager extends ServerManagerBase {
         );
 
         if (busyServer) {
-            console.log(`All servers with checkpoint ${normalizedCheckpoint} are busy. Returning ${busyServer.name}`);
             return busyServer;
         }
-
-        console.log(`No server found for checkpoint ${normalizedCheckpoint}`);
         return null;
     }
 
@@ -81,10 +74,8 @@ class ServerManager extends ServerManagerBase {
     }
 
     getAvailableServerWithAnyCheckpoint(): ServerStatus | null {
-        console.log("Searching for any available server with a loaded checkpoint");
 
         const availableServers = this.getAvailableServers();
-        console.log(`Available servers: ${availableServers.map((s) => s.name).join(", ")}`);
 
         // First, try to find a non-busy server
         const server = availableServers.find(
@@ -92,9 +83,6 @@ class ServerManager extends ServerManagerBase {
         );
 
         if (server) {
-            console.log(
-                `Found non-busy server ${server.name} with checkpoint ${server.currentCheckpoint}`
-            );
             return server;
         }
 
@@ -102,13 +90,8 @@ class ServerManager extends ServerManagerBase {
         const busyServer = availableServers.find((s) => s.currentCheckpoint);
 
         if (busyServer) {
-            console.log(
-                `All servers are busy. Returning ${busyServer.name} with checkpoint ${busyServer.currentCheckpoint}`
-            );
             return busyServer;
         }
-
-        console.log("No server found with a loaded checkpoint");
         return null;
     }
 
@@ -134,8 +117,68 @@ class ServerManager extends ServerManagerBase {
             })
         );
 
-        console.log("Available checkpoints:", checkpoints);
         return checkpoints;
+    }
+
+    getAvailableControlNetModels(module?: string): string[] {
+        const availableServers = this.getAvailableServers();
+        const allModels = availableServers.flatMap(server => server.controlNetModels);
+        const uniqueModels = [...new Set(allModels)]; // Remove duplicates
+
+        if (module) {
+            return uniqueModels.filter(model =>
+                model.toLowerCase().includes(module.toLowerCase())
+            );
+        }
+
+        return uniqueModels;
+    }
+
+    getServerForCheckpointWithControlNet(checkpoint: string | null): ServerStatus | null {
+        const normalizedCheckpoint = this.normalizeCheckpointName(checkpoint);
+
+        const availableServers = this.getAvailableServers();
+
+        // Find a non-busy server with the correct checkpoint and ControlNet support
+        const server = availableServers.find(
+            (s) => s.currentCheckpoint === normalizedCheckpoint && !s.isBusy && s.hasControlNet
+        );
+
+        if (server) {
+            return server;
+        }
+
+        // If no non-busy server found, return any server with the correct checkpoint and ControlNet support
+        const busyServer = availableServers.find(
+            (s) => s.currentCheckpoint === normalizedCheckpoint && s.hasControlNet
+        );
+
+        if (busyServer) {
+            return busyServer;
+        }
+        return null;
+    }
+
+    getAvailableServerWithControlNet(): ServerStatus | null {
+
+        const availableServers = this.getAvailableServers();
+
+        // First, try to find a non-busy server with ControlNet support
+        const server = availableServers.find(
+            (s) => !s.isBusy && s.hasControlNet
+        );
+
+        if (server) {
+            return server;
+        }
+
+        // If all servers are busy, return the first one with ControlNet support
+        const busyServer = availableServers.find((s) => s.hasControlNet);
+
+        if (busyServer) {
+            return busyServer;
+        }
+        return null;
     }
 
     releaseServer(serverName: string): void {
