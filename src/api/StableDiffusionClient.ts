@@ -141,11 +141,41 @@ class StableDiffusionClient {
         params: ImageGenerationParams,
     ): Promise<string> {
         console.log(`Sending request to URL: ${url}`);
-        const payload = {
-            ...params,
+        let payload: any = {
+            prompt: params.prompt,
+            negative_prompt: params.negative_prompt,
+            steps: params.steps,
+            cfg_scale: params.cfg_scale,
+            width: params.width,
+            height: params.height,
+            sampler_name: params.sampler_name,
             send_images: true,
             save_images: false,
         };
+
+        // If ControlNet is enabled, structure the payload correctly
+        if (params.controlnet) {
+            payload.alwayson_scripts = {
+            controlnet: {
+                args: [params.controlnet].flat().map(params => ({
+                        control_mode: "Balanced",
+                        guidance_start: 0,
+                        guidance_end: 1,
+                        hr_option: "Both",
+                        processor_res: params.processor_res || 1024,
+                        threshold_a: params.threshold_a || 0.5,
+                        threshold_b: params.threshold_b || 0.5,
+                        weight: params.weight,
+                        resize_mode: "Crop and Resize",
+                        input_mode: "simple",
+                        pulid_mode: "Fidelity",
+                        model: params.model,
+                        module: params.module,
+                        image: params.image,
+                    })),
+                }
+            };
+        }
 
         try {
             const response = await axios.post(`${url}/sdapi/v1/txt2img`, payload, {

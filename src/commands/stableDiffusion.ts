@@ -73,28 +73,6 @@ export const data = new SlashCommandBuilder()
                 // Add more samplers as needed
             ),
     )
-    .addBooleanOption((option) =>
-        option
-            .setName("use_controlnet")
-            .setDescription("Whether to use ControlNet"),
-    )
-    .addStringOption((option) =>
-        option
-            .setName("controlnet_module")
-            .setDescription("The ControlNet module to use")
-            .setAutocomplete(true),
-    )
-    .addStringOption((option) =>
-        option
-            .setName("controlnet_model")
-            .setDescription("The ControlNet model to use")
-            .setAutocomplete(true),
-    )
-    .addAttachmentOption((option) =>
-        option
-            .setName("controlnet_image")
-            .setDescription("The image to use for ControlNet"),
-    );
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
     if (!interaction.isChatInputCommand()) return;
@@ -275,9 +253,16 @@ export async function autocomplete(interaction: AutocompleteInteraction): Promis
                 const controlNetModels = ServerManager.getAvailableControlNetModels();
 
                 if (selectedModule) {
-                    const filteredModels = controlNetModels.filter(model =>
-                        model.toLowerCase().includes(selectedModule.toLowerCase())
-                    );
+                    const filteredModels = controlNetModels.filter(model => {
+                        const lowerModel = model.toLowerCase();
+                        const lowerModule = selectedModule.toLowerCase();
+
+                        if (lowerModule === 'openpose' || lowerModule === 'openpose_full') {
+                            return lowerModel.includes('openpose') || lowerModel.includes('pose');
+                        } else {
+                            return lowerModel.includes(lowerModule);
+                        }
+                    });
                     choices = filteredModels.map(model => ({ name: model, value: model }));
                 } else {
                     choices = controlNetModels.map(model => ({ name: model, value: model }));
@@ -292,8 +277,7 @@ export async function autocomplete(interaction: AutocompleteInteraction): Promis
                 choices = [
                     { name: "Canny", value: "canny" },
                     { name: "Depth", value: "depth" },
-                    { name: "Pose", value: "openpose" },
-                    { name: "T2I Adapter", value: "T2I" },
+                    { name: "Pose", value: "openpose_full" },
                 ];
                 break;
 
