@@ -7,6 +7,20 @@ import { CustomError, ErrorCodes } from "../utils/CustomError";
 import PermissionsManager from "../managers/PermissionsManager";
 import {GuildMember} from "discord.js";
 
+export interface ControlNetParams {
+    enabled: boolean;
+    model: string;
+    module: string;
+    weight: number;
+    image: string; // base64 encoded image
+    control_mode?: string;
+    guidance_start?: number;
+    guidance_end?: number;
+    processor_res?: number;
+    threshold_a?: number;
+    threshold_b?: number;
+}
+
 export interface ImageGenerationParams {
     prompt: string;
     negative_prompt?: string;
@@ -23,6 +37,7 @@ export interface ImageGenerationParams {
     enable_hr?: boolean;
     sampler_index?: string;
     use_controlnet?: boolean;
+    controlnet?: ControlNetParams;
 }
 
 export interface StatusUpdate {
@@ -40,7 +55,6 @@ class StableDiffusionClient {
         member: GuildMember,
         priority: number,
     ): Promise<string> {
-        console.log(`Entering generateImage for user ${member.user.tag} with priority ${priority}`);
         return new Promise((resolve, reject): void => {
             const request: QueuedRequest = {
                 params,
@@ -134,11 +148,10 @@ class StableDiffusionClient {
         };
 
         try {
-            console.log(`Request payload:`, JSON.stringify(payload));
             const response = await axios.post(`${url}/sdapi/v1/txt2img`, payload, {
                 timeout: 900000,
             });
-            console.log(`Received response from server`);
+
             return response.data.images[0]; // Base64 encoded image
         } catch (error) {
             console.error(`Error in sendRequest:`, error);

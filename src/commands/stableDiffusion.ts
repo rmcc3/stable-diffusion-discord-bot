@@ -5,10 +5,11 @@ import type {
     AutocompleteInteraction, ChatInputCommandInteraction,
     GuildMember,
 } from "discord.js";
-import StableDiffusionClient, { type StatusUpdate } from "../api/StableDiffusionClient";
+import StableDiffusionClient, { type StatusUpdate, type ControlNetParams } from "../api/StableDiffusionClient";
 import PermissionsManager from "../managers/PermissionsManager";
 import ServerManager, { type ServerStatus } from "../managers/ServerManager";
 import RateLimitManager from "../managers/RateLimitManager";
+import axios from "axios";
 
 // Initialize rate limit manager (10 usages per 5 minutes)
 const rateLimitManager = new RateLimitManager(10, 300);
@@ -71,10 +72,31 @@ export const data = new SlashCommandBuilder()
                 { name: "DPM++ SDE", value: "DPM++ SDE" },
                 // Add more samplers as needed
             ),
+    )
+    .addBooleanOption((option) =>
+        option
+            .setName("use_controlnet")
+            .setDescription("Whether to use ControlNet"),
+    )
+    .addStringOption((option) =>
+        option
+            .setName("controlnet_module")
+            .setDescription("The ControlNet module to use")
+            .setAutocomplete(true),
+    )
+    .addStringOption((option) =>
+        option
+            .setName("controlnet_model")
+            .setDescription("The ControlNet model to use")
+            .setAutocomplete(true),
+    )
+    .addAttachmentOption((option) =>
+        option
+            .setName("controlnet_image")
+            .setDescription("The image to use for ControlNet"),
     );
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    console.log("Entering execute function");
     if (!interaction.isChatInputCommand()) return;
 
     const member = interaction.member as GuildMember;
@@ -82,7 +104,6 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
     console.log(`Received /generate command from user ${member.user.tag}`);
 
-    console.log("Checking permissions");
     if (!(await PermissionsManager.canUseStableDiffusion(member))) {
         console.log(`User ${member.user.tag} does not have permission to use Stable Diffusion`);
         await interaction.reply({
@@ -92,7 +113,6 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         return;
     }
 
-    console.log("Checking rate limit");
     if (!rateLimitManager.checkRateLimit(userId)) {
         const cooldown = rateLimitManager.getRemainingCooldown(userId);
         console.log(`User ${member.user.tag} has reached the rate limit. Cooldown: ${cooldown}ms`);
@@ -103,7 +123,6 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         return;
     }
 
-    console.log("Parsing command options");
     const prompt = interaction.options.getString("prompt", true);
     const negative_prompt = interaction.options.getString("negative_prompt") || "";
     const steps = interaction.options.getInteger("steps", true);
@@ -112,36 +131,59 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     const height = interaction.options.getInteger("height") || 1024;
     const cfg_scale = interaction.options.getNumber("cfg_scale") || 2;
     const sampler = interaction.options.getString("sampler") || "DPM++ SDE";
+    const use_controlnet = interaction.options.getBoolean("use_controlnet") || false;
+    const controlnet_model = interaction.options.getString("controlnet_model");
+    const controlnet_module = interaction.options.getString("controlnet_module");
+    const controlnet_image = interaction.options.getAttachment("controlnet_image");
 
-    console.log(`Generate command parameters:`, { prompt, negative_prompt, steps, checkpoint, width, height, cfg_scale, sampler });
+    // ControlNet parameter validation
+    if (use_controlnet) {
+        if (!controlnet_model || !controlnet_module || !controlnet_image) {
+            await interaction.reply({
+                content: "When using ControlNet, you must provide a model, module, and image. Please check your inputs and try again.",
+                ephemeral: true
+            });
+            return;
+        }
 
-    console.log("Deferring reply");
+        if (controlnet_model.toLowerCase() === 'none') {
+            await interaction.reply({
+                content: "No suitable ControlNet model is available for the selected module. Please try a different module or disable ControlNet.",
+                ephemeral: true
+            });
+            return;
+        }
+    }
+
     await interaction.deferReply();
 
     try {
-        console.log("Setting up status update callback");
         const onStatusUpdate = async (update: StatusUpdate) => {
             console.log(`Status update for user ${member.user.tag}: ${update.message}`);
             await interaction.editReply(update.message);
         };
 
-        console.log("Finding server for checkpoint");
+        console.log("Finding server for checkpoint and ControlNet");
         let server: ServerStatus | null = null;
         if (checkpoint) {
-            server = ServerManager.getServerForCheckpoint(checkpoint);
+            server = use_controlnet
+                ? ServerManager.getServerForCheckpointWithControlNet(checkpoint)
+                : ServerManager.getServerForCheckpoint(checkpoint);
             if (!server) {
-                console.log(`No server available for checkpoint ${checkpoint}`);
+                console.log(`No suitable server available for checkpoint ${checkpoint} and ControlNet requirements`);
                 await interaction.editReply(
-                    `The checkpoint "${checkpoint}" is not currently available on any server. Please try a different checkpoint or retry later.`
+                    `No server is currently available with the required checkpoint and ControlNet support. Please try a different configuration or retry later.`
                 );
                 return;
             }
         } else {
-            server = ServerManager.getAvailableServerWithAnyCheckpoint();
+            server = use_controlnet
+                ? ServerManager.getAvailableServerWithControlNet()
+                : ServerManager.getAvailableServerWithAnyCheckpoint();
             if (!server) {
-                console.log(`No server available with any checkpoint`);
+                console.log(`No suitable server available`);
                 await interaction.editReply(
-                    "No server is currently available with a loaded checkpoint. Please try again later."
+                    "No server is currently available with the required capabilities. Please try again later."
                 );
                 return;
             }
@@ -153,7 +195,26 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         const priority = await PermissionsManager.getUserPriority(member);
         console.log(`User priority for ${member.user.tag}: ${priority}`);
 
-        console.log("Calling StableDiffusionClient.generateImage");
+        let controlnetParams: ControlNetParams | undefined;
+        if (use_controlnet && controlnet_model && controlnet_module && controlnet_image) {
+            console.log("Processing ControlNet image");
+            const imageResponse = await axios.get(controlnet_image.url, { responseType: 'arraybuffer' });
+            const base64Image = Buffer.from(imageResponse.data, 'binary').toString('base64');
+            controlnetParams = {
+                enabled: true,
+                model: controlnet_model,
+                module: controlnet_module,
+                weight: 1.0,
+                image: base64Image,
+                control_mode: "Balanced",
+                guidance_start: 0.0,
+                guidance_end: 1.0,
+                processor_res: 512,
+                threshold_a: 0.5,
+                threshold_b: 0.5
+            };
+        }
+
         const image = await StableDiffusionClient.generateImage(
             {
                 prompt,
@@ -163,6 +224,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
                 height,
                 cfg_scale,
                 sampler_name: sampler,
+                controlnet: controlnetParams
             },
             server.currentCheckpoint,
             onStatusUpdate,
@@ -172,11 +234,9 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
         console.log(`Image generated successfully for user ${member.user.tag}`);
 
-        console.log("Creating buffer from generated image");
         const buffer = Buffer.from(image, "base64");
 
         if (buffer.length > 20 * 1024 * 1024) { // 20MB limit
-            console.log(`Generated image exceeds Discord's file size limit`);
             await interaction.editReply("The generated image is too large to upload to Discord. Please try again with smaller dimensions.");
             return;
         }
@@ -187,32 +247,67 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
             files: [{ attachment: buffer, name: "generated_image.png" }],
         });
     } catch (error) {
-        console.error(`Error generating image for user ${member.user.tag}:`, error);
         await interaction.followUp({
             content: "There was an error generating the image. Please try again later.",
             ephemeral: true
         });
     }
-
-    console.log("Exiting execute function");
 }
 
 export async function autocomplete(interaction: AutocompleteInteraction): Promise<void> {
-    const focusedValue = interaction.options.getFocused().toLowerCase();
+    const focusedOption = interaction.options.getFocused(true);
+    const focusedValue = focusedOption.value.toLowerCase();
+
     try {
-        const choices = await Promise.race([
-            ServerManager.getAvailableCheckpoints(),
-            new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5500))
-        ]);
-        const filtered = choices
-            .map(checkpoint => ({
-                name: `${checkpoint.name} (${checkpoint.servers.join(", ")})`,
-                value: checkpoint.name,
-            }))
-            .filter(choice => choice.name.toLowerCase().includes(focusedValue));
+        let choices: { name: string; value: string }[] = [];
+
+        switch (focusedOption.name) {
+            case 'checkpoint':
+                const checkpoints = ServerManager.getAvailableCheckpoints();
+                choices = checkpoints.map(checkpoint => ({
+                    name: `${checkpoint.name} (${checkpoint.servers.join(", ")})`,
+                    value: checkpoint.name,
+                }));
+                break;
+
+            case 'controlnet_model':
+                const selectedModule = interaction.options.getString('controlnet_module');
+                const controlNetModels = ServerManager.getAvailableControlNetModels();
+
+                if (selectedModule) {
+                    const filteredModels = controlNetModels.filter(model =>
+                        model.toLowerCase().includes(selectedModule.toLowerCase())
+                    );
+                    choices = filteredModels.map(model => ({ name: model, value: model }));
+                } else {
+                    choices = controlNetModels.map(model => ({ name: model, value: model }));
+                }
+
+                if (choices.length === 0) {
+                    choices = [{ name: "None available", value: "none" }];
+                }
+                break;
+
+            case 'controlnet_module':
+                choices = [
+                    { name: "Canny", value: "canny" },
+                    { name: "Depth", value: "depth" },
+                    { name: "Pose", value: "openpose" },
+                    { name: "T2I Adapter", value: "T2I" },
+                ];
+                break;
+
+            default:
+                break;
+        }
+
+        const filtered = choices.filter(choice =>
+            choice.name.toLowerCase().includes(focusedValue) ||
+            choice.value.toLowerCase().includes(focusedValue)
+        );
+
         await interaction.respond(filtered.slice(0, 25));
     } catch (error) {
-        console.error('Error in autocomplete:', error);
-        await interaction.respond([{ name: 'Error fetching checkpoints', value: 'error' }]);
+        await interaction.respond([{ name: 'Error fetching options', value: 'error' }]);
     }
 }

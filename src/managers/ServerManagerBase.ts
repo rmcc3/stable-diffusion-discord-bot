@@ -13,6 +13,7 @@ export interface ServerStatus {
     loras: string[];
     hasControlNet: boolean;
     extensions: ExtensionInfo[];
+    controlNetModels: string[];
 }
 
 export interface APIServer {
@@ -44,6 +45,7 @@ export default class ServerManagerBase {
             isBusy: false,
             hasControlNet: false,
             extensions: [],
+            controlNetModels: [],
         }));
         this.app = express();
         this.setupWebhookEndpoint();
@@ -86,17 +88,31 @@ export default class ServerManagerBase {
         await Promise.all(this.servers.map(server => this.checkServerStatus(server.name)));
     }
 
+    async fetchControlNetModels(serverUrl: string): Promise<string[]> {
+        try {
+            const response = await axios.get(`${serverUrl}/controlnet/model_list?update=true`, {
+                timeout: 30000
+            });
+            return response.data.model_list;
+        } catch (error) {
+            if (axios.isAxiosError(error) && error.code === 'ECONNABORTED') {
+                console.log(`Request to ${serverUrl} timed out. The server might be busy or slow to respond.`);
+            }
+            return [];
+        }
+    }
+
     async checkServerStatus(serverName: string): Promise<void> {
         const server = this.servers.find(s => s.name === serverName);
         if (!server) {
-            console.log(`Server ${serverName} not found`);
             return;
         }
 
         try {
-            const [optionsResponse, extensionsResponse] = await Promise.all([
-                axios.get(`${server.url}/sdapi/v1/options`, { timeout: 5000 }),
-                axios.get(`${server.url}/sdapi/v1/extensions`, { timeout: 5000 })
+            const [optionsResponse, extensionsResponse, controlNetModels] = await Promise.all([
+                axios.get(`${server.url}/sdapi/v1/options`, { timeout: 30000 }),
+                axios.get(`${server.url}/sdapi/v1/extensions`, { timeout: 30000 }),
+                this.fetchControlNetModels(server.url)
             ]);
 
             const extensions = extensionsResponse.data as ExtensionInfo[];
@@ -107,6 +123,7 @@ export default class ServerManagerBase {
                 currentCheckpoint: this.normalizeCheckpointName(optionsResponse.data.sd_model_checkpoint),
                 hasControlNet: hasControlNet,
                 extensions: extensions,
+                controlNetModels: controlNetModels
             });
         } catch (error) {
             this.updateServerStatus(serverName, {
@@ -114,6 +131,7 @@ export default class ServerManagerBase {
                 currentCheckpoint: null,
                 hasControlNet: false,
                 extensions: [],
+                controlNetModels: []
             });
         }
     }
@@ -122,7 +140,6 @@ export default class ServerManagerBase {
         const server = this.servers.find(s => s.name === serverName);
         if (server) {
             Object.assign(server, newStatus);
-            console.log(`Updated status for ${serverName}:`, newStatus);
             this.notifyStatusChange(server);
         }
     }
