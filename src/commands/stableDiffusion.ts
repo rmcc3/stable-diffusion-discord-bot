@@ -73,6 +73,28 @@ export const data = new SlashCommandBuilder()
                 // Add more samplers as needed
             ),
     )
+    /*.addBooleanOption((option) =>
+        option
+            .setName("use_controlnet")
+            .setDescription("Whether to use ControlNet"),
+    )
+    .addStringOption((option) =>
+        option
+            .setName("controlnet_module")
+            .setDescription("The ControlNet module to use")
+            .setAutocomplete(true),
+    )
+    .addStringOption((option) =>
+        option
+            .setName("controlnet_model")
+            .setDescription("The ControlNet model to use")
+            .setAutocomplete(true),
+    )
+    .addAttachmentOption((option) =>
+        option
+            .setName("controlnet_image")
+            .setDescription("The image to use for ControlNet"),
+    );*/
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
     if (!interaction.isChatInputCommand()) return;
